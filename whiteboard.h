@@ -124,6 +124,12 @@ void here_all_users(user* head);  //DEBUG
 void print_users(whiteboard* w);  //DEBUG
 
 
+// to string
+char* here_all_topics_to_string(topic* head, char* buf);
+char* wb_to_string(whiteboard* w);
+
+
+
 
 // authenticator
 int validate_user(whiteboard*w, char* us, char* pw);

@@ -9,23 +9,67 @@ void app_loop(int shmidwb, int socket_desc, char* current_user){
   int ret, recv_bytes;
   char* buf=(char*)malloc(1024*sizeof(char));
   size_t buf_len = 1024;
+  char* resp=(char*)malloc(32768*sizeof(char));
+  size_t resp_len = 32768;
+
 
   while(1){
-    printf("... entering app_loop\n");
-    while((recv_bytes = recv(socket_desc, buf, buf_len, 0)) < 0 ) {
-        if(errno == EINTR) continue;
-        ERROR_HELPER(-1, "Cannot read from socket");
+    // printf("... entering app_loop\n");   //DEBUG
+    while((recv(socket_desc, buf, buf_len, 0)) < 0 ) {
+      if(errno == EINTR) continue;
+      ERROR_HELPER(-1, "Cannot read from socket");
     }
-    if(strcmp(buf,"Ready\0")) break;
-    whiteboard* w = (whiteboard*) shmat(shmidwb, NULL, 0);
-    w->topicshead = (topic*) shmat(w->shmidto, NULL, 0);
-    printf("... printing wb\n");
 
-    printf("%s\n\n", wb_to_string(w));
+    if (strncmp(buf, "list messages",13) == 0) {           // maybe edit with "topic [topic#]"
+       // do something
+    } 
+    else if (strncmp(buf, "list topics",11) == 0) {
+      whiteboard* w = (whiteboard*) shmat(shmidwb, NULL, 0);
+      w->topicshead = (topic*) shmat(w->shmidto, NULL, 0);
+      // printf("... printing wb\n");   //DEBUG
+      
+      strcpy(resp, wb_to_string(w));
+      strcat(resp, "\0");
+      
+      shmdt(w->topicshead);
+      shmdt(w);
+      printf("%s\n", resp);   //DEBUG
+     } 
+     else if (strncmp(buf, "get ",4) == 0) {
+       // do something
+     } 
+     else if (strncmp(buf, "status ",7) == 0) {
+       // do something
+     } 
+     else if (strncmp(buf, "reply ",6) == 0) {
+       // do something
+     } 
+     else if (strncmp(buf, "create topic",12) == 0) {
+       // do something
+     } 
+     else if (strncmp(buf, "append ",7) == 0) {
+       // do something
+     } 
+     else if (strncmp(buf, "subscribe ",10) == 0) {
+       // do something
+     } 
+     else if (strncmp(buf, "delete ",7) == 0) {
+       // do something
+     } 
+     else if (strncmp(buf, "quit",4) == 0) {
+      break;
+     }
 
-    shmdt(w);
-    shmdt(w->topicshead);
+     else /* default: */{
+       resp="help\0";
+     }
+    
+    send(socket_desc, resp,strlen(resp),0);
+
   }
+
+  free(buf);
+  free(resp);
   // send whiteboard's message
   // receive command
   // switch case

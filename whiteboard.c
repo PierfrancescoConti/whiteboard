@@ -241,18 +241,16 @@ char* here_all_topics_to_string(topic* head, char* buf){
   len+=sprintf (buf+len, "%d. ",head->id);
   len+=sprintf(buf+len,"%s\n", head->title);
   len+=sprintf(buf+len,"    by %s\n\n", head->author);
-  printf("%s\n",buf);
-  //free(str);
   if(head->next==NULL) return buf;
-  here_all_topics_to_string(head->next, buf);
+  return here_all_topics_to_string(head->next, buf);
 }
 
 char* wb_to_string(whiteboard* w){
   char buf[32768];
   buf[0]=' ';
   strcat(buf, "Here the whiteboard with all topics:\n\n");
-  here_all_topics_to_string(w->topicshead, buf);
-  strcat(buf, "> ");
+  return here_all_topics_to_string(w->topicshead, buf);
+  
 }
 
 
@@ -291,13 +289,13 @@ char* Auth(int shmidwb, int socket_desc){
 
   char* username=(char*)malloc(32*sizeof(char));
   size_t b_len = 32;
-  int recv_bytes = recv(socket_desc, username, b_len, 0);
+  recv(socket_desc, username, b_len, 0);
   replace_char(username, '\n', '\0');
   s="Password: \0";
   send(socket_desc, s, 13, 0);
 
   char* password=(char*)malloc(32*sizeof(char));
-  recv_bytes = recv(socket_desc, password, b_len, 0);
+  recv(socket_desc, password, b_len, 0);    // gestire gli errori di TUTTE le recv
   replace_char(password, '\n', '\0');
 
   int ret=validate_user(w, username, password);
@@ -311,7 +309,7 @@ char* Auth(int shmidwb, int socket_desc){
   }
   shmdt(w->usershead);
   shmdt(w);
-  if(ret==-1) return NULL;
+  return NULL;
 }
 
 
@@ -326,7 +324,7 @@ char* Register(int shmidwb, int socket_desc){
 
   char* username=(char*)malloc(sizeof(char)*32);
   size_t b_len = 32;
-  int recv_bytes = recv(socket_desc, username, b_len, 0);
+  recv(socket_desc, username, b_len, 0);
   replace_char(username, '\n', '\0');
   char end='\0';    //????
   strncat(username, &end, 1);
@@ -340,11 +338,11 @@ char* Register(int shmidwb, int socket_desc){
   send(socket_desc, s, 13, 0);
 
   char* password=(char*)malloc(sizeof(char)*32);
-  recv_bytes = recv(socket_desc, password, b_len, 0);
+  recv(socket_desc, password, b_len, 0);
   replace_char(password, '\n', '\0');
   strncat(password, &end, 1);
   printf("Password: %s\n", password);
-  printf("lens: %d - %d\n", strlen(username) ,strlen(password));
+  // printf("lens: %d - %d\n", strlen(username) ,strlen(password));   // DEBUG
 
 
   user* us=get_user_by_usname(w, username);

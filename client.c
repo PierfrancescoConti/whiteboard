@@ -24,26 +24,96 @@ char* replace_char(char* str, char find, char replace){
 
 
 
+
+void print_logo(){
+    printf("\e[1;1H\e[2J");
+    printf("\033[1;36m");
+    printf("\n\toooooo   oooooo     oooo  .o8                                          .o8  \n\t `888.    `888.     .8'  \"888                                         \"888  \n\t  `888.   .8888.   .8'    888oooo.   .ooooo.   .oooo.   oooo d8b  .oooo888  \n\t   `888  .8'`888. .8'     d88' `88b d88' `88b `P  )88b  `888\"\"8P d88' `888  \n\t    `888.8'  `888.8'      888   888 888   888  .oP\"888   888     888   888  \n\t     `888'    `888'       888   888 888   888 d8(  888   888     888   888  \n\t      `8'      `8'        `Y8bod8P' `Y8bod8P' `Y888\"\"8o d888b    `Y8bod88P\" \n\t                                                                             \n");
+    printf("\033[0m");
+}
+
+
+void print_menu(){      //help
+    printf("MENU:\n\n");
+    printf("-> help\n");
+    printf("-> list [messages|topics]\n");
+    printf("-> get [message#]\n");
+    printf("-> status [message#]\n");
+    printf("-> reply [message#]\n");
+    printf("-> create [topic]\n");
+    printf("-> append [topic] [thread]???????????\n");
+    printf("-> subscribe [topic]\n");
+    printf("-> delete [topic]\n");
+    printf("-> quit\n");
+
+}
+
+
+
+void client_loop(int socket_desc){
+
+    char* buf=(char*)malloc(32768*sizeof(char));
+    size_t buf_len = 32768;
+
+    char choice[32];
+    print_logo();
+ 
+    while(1){
+        do{
+            
+            printf("Need help? Write help.\n> ");
+            if(fgets(choice, sizeof(choice),stdin) != (char*)choice){
+                fprintf(stderr,"Error while reading from stdin, exiting...\n");
+                exit(EXIT_FAILURE);
+            }
+            choice[strlen(choice)-1]='\0';
+        }
+        while(!(strcmp(choice,"help")==0 || strcmp(choice,"list messages")==0 || strcmp(choice,"list topics")==0 || strncmp(choice, "get ",4)==0 || strncmp(choice, "status ",7)==0 || strcmp(choice, "create topic") == 0 || strncmp(choice, "reply ",6) == 0 || strncmp(choice, "delete ",7) == 0 || strncmp(choice, "subscribe ",10) == 0 || strncmp(choice, "append ",7) == 0 || strcmp(choice, "quit") == 0));
+        send(socket_desc, choice,strlen(choice),0);
+        if (!strcmp(choice, "quit")) break;
+        recv(socket_desc, buf, buf_len, 0);
+        if (!strcmp(buf, "help\0")){
+            print_logo();
+            print_menu();
+        }
+        // TODO: check other responses
+        else{
+            print_logo();
+            printf("%s\n", buf);
+        }
+
+        
+        //memset(buf, 0, buf_len);          // FLUSH
+
+  
+    } 
+
+    free(buf);
+    exit(EXIT_SUCCESS);
+}
+
+
+
 // TODO: rimpiazzare tutte le funzioni ad alto livello che non le vogliamo -> tipo fgets
 int main(int argc, char* argv[]) {
-     char init[16];
-     int ret,recv_bytes,log=0;
+    char init[16];
+    int ret,recv_bytes=0;
 
 
-     char buf[1024];
-     size_t buf_len = sizeof(buf);
-     // variables for handling a socket
-     int socket_desc;
-     struct sockaddr_in server_addr = {0}; // some fields are required to be filled with 0
+    char buf[1024];
+    size_t buf_len = sizeof(buf);
+    // variables for handling a socket
+    int socket_desc;
+    struct sockaddr_in server_addr = {0}; // some fields are required to be filled with 0
 
-     // create a socket
-     socket_desc = socket(AF_INET, SOCK_STREAM, 0);
-     ERROR_HELPER(socket_desc, "Could not create socket");
+    // create a socket
+    socket_desc = socket(AF_INET, SOCK_STREAM, 0);
+    ERROR_HELPER(socket_desc, "Could not create socket");
 
-     // set up parameters for the connection
-     server_addr.sin_addr.s_addr = inet_addr(SERVER_ADDRESS);
-     server_addr.sin_family      = AF_INET;
-     server_addr.sin_port        = htons(SERVER_PORT); // don't forget about network byte order!
+    // set up parameters for the connection
+    server_addr.sin_addr.s_addr = inet_addr(SERVER_ADDRESS);
+    server_addr.sin_family      = AF_INET;
+    server_addr.sin_port        = htons(SERVER_PORT); // don't forget about network byte order!
 
      while(1){
      
@@ -54,7 +124,7 @@ int main(int argc, char* argv[]) {
         // loop del messaggio (inserisci i comandi corretti)
         /*
         do{
-        printf("per il login scrivi authenticate o A\nper registrarti scrivi register o R\n");
+        printf("to login write authenticate or A\nto register write register o R\n> ");
         if(fgets(init, sizeof(init),stdin) != (char*)init){
             fprintf(stderr,"Error while reading from stdin, exiting...\n");
             exit(EXIT_FAILURE);
@@ -89,7 +159,7 @@ int main(int argc, char* argv[]) {
         fgets(password, sizeof(password),stdin);
         replace_char(password, '\n', '\0');
         strncat(password, &end, 1);
-        printf("lens: %d - %d\n", strlen(username) ,strlen(password));
+        // printf("lens: %d - %d\n", strlen(username) ,strlen(password));   // DEBUG
         // sending password
         send(socket_desc, password,strlen(password), 0);
         // Authenticated? Registrated?
@@ -101,6 +171,8 @@ int main(int argc, char* argv[]) {
         if(!(strcmp(buf,"Invalid credentials.\0")==0 || strcmp(buf,"Username already taken.\0")==0)) break;
         */break;    //DEBUG: auth bypass (cancellare questa riga e decommentare)
     }
-    printf("Sending Ready\n");
-    send(socket_desc, "Ready\0",7,0);
+    // printf("Sending Ready\n");       //DEBUG
+    
+    
+    client_loop(socket_desc);
 }
