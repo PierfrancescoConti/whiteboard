@@ -5,8 +5,27 @@
 
 
 
-void app_loop(){
-  // while(1)
+void app_loop(int shmidwb, int socket_desc, char* current_user){
+  int ret, recv_bytes;
+  char* buf=(char*)malloc(1024*sizeof(char));
+  size_t buf_len = 1024;
+
+  while(1){
+    printf("... entering app_loop\n");
+    while((recv_bytes = recv(socket_desc, buf, buf_len, 0)) < 0 ) {
+        if(errno == EINTR) continue;
+        ERROR_HELPER(-1, "Cannot read from socket");
+    }
+    if(strcmp(buf,"Ready\0")) break;
+    whiteboard* w = (whiteboard*) shmat(shmidwb, NULL, 0);
+    w->topicshead = (topic*) shmat(w->shmidto, NULL, 0);
+    printf("... printing wb\n");
+
+    printf("%s\n\n", wb_to_string(w));
+
+    shmdt(w);
+    shmdt(w->topicshead);
+  }
   // send whiteboard's message
   // receive command
   // switch case
@@ -27,7 +46,7 @@ void* connection_handler(int shmidwb, int socket_desc, struct sockaddr_in* clien
     // parse client IP address and port
     char client_ip[INET_ADDRSTRLEN];
     inet_ntop(AF_INET, &(client_addr->sin_addr), client_ip, INET_ADDRSTRLEN);
-
+/*
     // read message from client
     while((recv_bytes = recv(socket_desc, buf, buf_len, 0)) < 0 ) {
         if(errno == EINTR) continue;
@@ -81,6 +100,7 @@ void* connection_handler(int shmidwb, int socket_desc, struct sockaddr_in* clien
       app_loop(shmidwb, socket_desc, current_user);
 
     }
+    */app_loop(shmidwb, socket_desc, "user_test");   // DEBUG: auth bypass (cancellare questa riga e decommentare)
 	// close socket
 	ret = close(socket_desc);
 	ERROR_HELPER(ret, "Cannot close socket for incoming connection");

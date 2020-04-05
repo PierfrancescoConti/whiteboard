@@ -235,6 +235,29 @@ void print_users(whiteboard* w){  //DEBUG
 
 
 
+// to string
+char* here_all_topics_to_string(topic* head, char* buf){
+  int len=strlen(buf);
+  len+=sprintf (buf+len, "%d. ",head->id);
+  len+=sprintf(buf+len,"%s\n", head->title);
+  len+=sprintf(buf+len,"    by %s\n\n", head->author);
+  printf("%s\n",buf);
+  //free(str);
+  if(head->next==NULL) return buf;
+  here_all_topics_to_string(head->next, buf);
+}
+
+char* wb_to_string(whiteboard* w){
+  char buf[32768];
+  buf[0]=' ';
+  strcat(buf, "Here the whiteboard with all topics:\n\n");
+  here_all_topics_to_string(w->topicshead, buf);
+  strcat(buf, "> ");
+}
+
+
+
+
 
 
 
