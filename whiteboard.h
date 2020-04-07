@@ -101,6 +101,9 @@ void push_comment(topic* t, comment* c);    // whiteboard modified? -> update_to
 topic* find_topic(topic* head, int id_topic);
 topic* get_topic(whiteboard* w, int id_topic);
 
+topic* get_last_t(topic* head);
+topic* get_last_topic(whiteboard* w);
+
 user* find_user(user* head, int id_user);
 user* get_user(whiteboard* w, int id_user);
 

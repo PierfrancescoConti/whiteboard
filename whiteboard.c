@@ -32,10 +32,10 @@ comment* new_comment(int id, char* author, time_t timestamp, char* comm){
   c->timestamp=timestamp;
 
   strncpy(c->author, author, 32);
-  c->author[strlen(c->author)]='\0';  // stringa troncata se troppo lunga
+  c->author[strlen(c->author)-1]='\0';  // stringa troncata se troppo lunga
 
   strncpy(c->comm, comm, 32);
-  c->comm[strlen(c->comm)]='\0';  // stringa troncata se troppo lunga
+  c->comm[strlen(c->comm)-1]='\0';  // stringa troncata se troppo lunga
 
   c->next=NULL;
   return c;
@@ -45,13 +45,13 @@ topic* new_topic(int id, char* author, char* title, char* content, time_t timest
   topic* t = (topic*) malloc(sizeof(topic));
   t->id=id;
   strncpy(t->author, author, 32);
-  t->author[strlen(t->author)]='\0';  // stringa troncata se troppo lunga
+  t->author[strlen(t->author)-1]='\0';  // stringa troncata se troppo lunga
 
-  strncpy(t->title, author, 256);
-  t->title[strlen(t->title)]='\0';  // stringa troncata se troppo lunga
+  strncpy(t->title, title, 256);
+  t->title[strlen(t->title)-1]='\0';  // stringa troncata se troppo lunga
 
-  strncpy(t->content, author, 1024);
-  t->content[strlen(t->content)]='\0';  // stringa troncata se troppo lunga
+  strncpy(t->content, content, 1024);
+  t->content[strlen(t->content)-1]='\0';  // stringa troncata se troppo lunga
 
   t->timestamp=timestamp;
   if ((t->shmidcm = shmget(30000+(t->id*MAX_COMMENTS), sizeof(comment)*MAX_COMMENTS, IPC_CREAT | 0666)) < 0) {
@@ -144,6 +144,16 @@ topic* find_topic(topic* head, int id_topic){
 topic* get_topic(whiteboard* w, int id_topic){
   return find_topic(w->topicshead, id_topic);
 }
+
+topic* get_last_t(topic* head){
+  if (head->next==NULL) return head;
+  return get_last_t(head->next);
+}
+
+topic* get_last_topic(whiteboard* w){
+  return get_last_t(w->topicshead);
+}
+
 
 user* find_user(user* head, int id_user){
   if(head->id == id_user) return head;
@@ -241,14 +251,15 @@ char* here_all_topics_to_string(topic* head, char* buf){
   len+=sprintf (buf+len, "%d. ",head->id);
   len+=sprintf(buf+len,"%s\n", head->title);
   len+=sprintf(buf+len,"    by %s\n\n", head->author);
-  if(head->next==NULL) return buf;
+  if(head->next==NULL){
+    return buf;
+  }
   return here_all_topics_to_string(head->next, buf);
 }
 
 char* wb_to_string(whiteboard* w){
   char buf[32768];
-  buf[0]=' ';
-  strcat(buf, "Here the whiteboard with all topics:\n\n");
+  strcpy(buf, "Here the whiteboard with all topics:\n\n");
   return here_all_topics_to_string(w->topicshead, buf);
   
 }

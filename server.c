@@ -14,11 +14,13 @@ void app_loop(int shmidwb, int socket_desc, char* current_user){
 
 
   while(1){
+
     // printf("... entering app_loop\n");   //DEBUG
     while((recv(socket_desc, buf, buf_len, 0)) < 0 ) {
       if(errno == EINTR) continue;
       ERROR_HELPER(-1, "Cannot read from socket");
     }
+
 
     if (strncmp(buf, "list messages",13) == 0) {           // maybe edit with "topic [topic#]"
        // do something
@@ -26,14 +28,16 @@ void app_loop(int shmidwb, int socket_desc, char* current_user){
     else if (strncmp(buf, "list topics",11) == 0) {
       whiteboard* w = (whiteboard*) shmat(shmidwb, NULL, 0);
       w->topicshead = (topic*) shmat(w->shmidto, NULL, 0);
-      // printf("... printing wb\n");   //DEBUG
       
       strcpy(resp, wb_to_string(w));
       strcat(resp, "\0");
+
+      //printf("... printing wb\n");   //DEBUG
+      //print_wb(w);   //DEBUG
       
       shmdt(w->topicshead);
       shmdt(w);
-      printf("%s\n", resp);   //DEBUG
+      // printf("%s\n", resp);   //DEBUG
      } 
      else if (strncmp(buf, "get ",4) == 0) {
        // do something
@@ -43,9 +47,38 @@ void app_loop(int shmidwb, int socket_desc, char* current_user){
      } 
      else if (strncmp(buf, "reply ",6) == 0) {
        // do something
-     } 
+     }
      else if (strncmp(buf, "create topic",12) == 0) {
-       // do something
+      char* title=(char*)malloc(256*sizeof(char));
+      char* content=(char*)malloc(1024*sizeof(char));
+
+      send(socket_desc, "title\0",7,0);
+
+      recv(socket_desc, title, 256, 0);
+
+      send(socket_desc, "content\0",9,0);
+
+      recv(socket_desc, content, 1024, 0);
+
+      whiteboard* w = (whiteboard*) shmat(shmidwb, NULL, 0);
+      w->topicshead = (topic*) shmat(w->shmidto, NULL, 0);
+
+      time_t date;
+      time(&date);
+      topic* last=get_last_topic(w);
+      topic* t=new_topic(last->id+1, current_user, title, content, date);
+      add_topic(w, t);
+
+      shmdt(w->topicshead);
+      shmdt(w);
+
+
+      free(content);
+      free(title);
+
+      strcpy(resp, "Topic created successfully!");
+      strcat(resp, "\0");
+
      } 
      else if (strncmp(buf, "append ",7) == 0) {
        // do something
@@ -61,15 +94,17 @@ void app_loop(int shmidwb, int socket_desc, char* current_user){
      }
 
      else /* default: */{
-       resp="help\0";
+       strcpy(resp, "help\0");
      }
     
     send(socket_desc, resp,strlen(resp),0);
 
   }
+  printf("free\n");
 
   free(buf);
   free(resp);
+  return;
   // send whiteboard's message
   // receive command
   // switch case
@@ -146,13 +181,14 @@ void* connection_handler(int shmidwb, int socket_desc, struct sockaddr_in* clien
     }
     */app_loop(shmidwb, socket_desc, "user_test");   // DEBUG: auth bypass (cancellare questa riga e decommentare)
 	// close socket
+  printf("closing....\n");     // DEBUG
 	ret = close(socket_desc);
 	ERROR_HELPER(ret, "Cannot close socket for incoming connection");
 	free(buf);
   free(client_addr); // do not forget to free this buffer!
   //detach from shared memory
   //shmdt(w);
-  printf("all closed\n");
+  printf("all closed\n");     // DEBUG
   exit(1);
 
 }

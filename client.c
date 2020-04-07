@@ -27,8 +27,11 @@ char* replace_char(char* str, char find, char replace){
 
 void print_logo(){
     printf("\e[1;1H\e[2J");
-    printf("\033[1;36m");
-    printf("\n\toooooo   oooooo     oooo  .o8                                          .o8  \n\t `888.    `888.     .8'  \"888                                         \"888  \n\t  `888.   .8888.   .8'    888oooo.   .ooooo.   .oooo.   oooo d8b  .oooo888  \n\t   `888  .8'`888. .8'     d88' `88b d88' `88b `P  )88b  `888\"\"8P d88' `888  \n\t    `888.8'  `888.8'      888   888 888   888  .oP\"888   888     888   888  \n\t     `888'    `888'       888   888 888   888 d8(  888   888     888   888  \n\t      `8'      `8'        `Y8bod8P' `Y8bod8P' `Y888\"\"8o d888b    `Y8bod88P\" \n\t                                                                             \n");
+    printf("\033[1;31m");
+    //printf("\033[1;50m");     //Background
+    //printf("\n\toooooo   oooooo     oooo  .o8                                          .o8  \n\t\033[1;34m `888.    `888.     .8'  \"888                                         \"888  \n\t\033[1;35m  `888.   .8888.   .8'    888oooo.   .ooooo.   .oooo.   oooo d8b  .oooo888  \n\t\033[1;36m   `888  .8'`888. .8'     d88' `88b d88' `88b `P  )88b  `888\"\"8P d88' `888  \n\t\033[1;37m    `888.8'  `888.8'      888   888 888   888  .oP\"888   888     888   888  \n\t\033[1;31m     `888'    `888'       888   888 888   888 d8(  888   888     888   888  \n\t\033[1;32m      `8'      `8'        `Y8bod8P' `Y8bod8P' `Y888\"\"8o d888b    `Y8bod88P\" \n\t                                                                            \n");
+    printf("\n\toooooo   oooooo     oooo  .o8                                          .o8  \n\t `888.    `888.     .8'  \"888                                         \"888  \n\t\033[1;97m  `888.   .8888.   .8'    888oooo.   .ooooo.   .oooo.   oooo d8b  .oooo888  \n\t   `888  .8'`888. .8'     d88' `88b d88' `88b `P  )88b  `888\"\"8P d88' `888  \n\t    `888.8'  `888.8'      888   888 888   888  .oP\"888   888     888   888  \n\t\033[1;32m     `888'    `888'       888   888 888   888 d8(  888   888     888   888  \n\t      `8'      `8'        `Y8bod8P' `Y8bod8P' `Y888\"\"8o d888b    `Y8bod88P\" \n\t                                                                            \n");
+    //printf("\n\toooooo   oooooo     oooo  .o8                                          .o8  \n\t\033[1;33m `888.    `888.     .8'  \"888                                         \"888  \n\t\033[1;33m  `888.   .8888.   .8'    888oooo.   .ooooo.   .oooo.   oooo d8b  .oooo888  \n\t\033[1;32m   `888  .8'`888. .8'     d88' `88b d88' `88b `P  )88b  `888\"\"8P d88' `888  \n\t\033[1;32m    `888.8'  `888.8'      888   888 888   888  .oP\"888   888     888   888  \n\t\033[1;36m     `888'    `888'       888   888 888   888 d8(  888   888     888   888  \n\t\033[1;36m      `8'      `8'        `Y8bod8P' `Y8bod8P' `Y888\"\"8o d888b    `Y8bod88P\" \n\t                                                                            \n");
     printf("\033[0m");
 }
 
@@ -44,7 +47,7 @@ void print_menu(){      //help
     printf("-> append [topic] [thread]???????????\n");
     printf("-> subscribe [topic]\n");
     printf("-> delete [topic]\n");
-    printf("-> quit\n");
+    printf("-> quit\n\n");
 
 }
 
@@ -61,7 +64,7 @@ void client_loop(int socket_desc){
     while(1){
         do{
             
-            printf("Need help? Write help.\n> ");
+            printf("\nNeed help? Write help.\n> ");
             if(fgets(choice, sizeof(choice),stdin) != (char*)choice){
                 fprintf(stderr,"Error while reading from stdin, exiting...\n");
                 exit(EXIT_FAILURE);
@@ -71,8 +74,35 @@ void client_loop(int socket_desc){
         while(!(strcmp(choice,"help")==0 || strcmp(choice,"list messages")==0 || strcmp(choice,"list topics")==0 || strncmp(choice, "get ",4)==0 || strncmp(choice, "status ",7)==0 || strcmp(choice, "create topic") == 0 || strncmp(choice, "reply ",6) == 0 || strncmp(choice, "delete ",7) == 0 || strncmp(choice, "subscribe ",10) == 0 || strncmp(choice, "append ",7) == 0 || strcmp(choice, "quit") == 0));
         send(socket_desc, choice,strlen(choice),0);
         if (!strcmp(choice, "quit")) break;
+        else if(!strcmp(choice, "create topic")){
+            recv(socket_desc, buf, buf_len, 0);
+            if(strncmp(buf, "title",5)){
+                printf("errore in create topic (title)");
+            }
+            printf("Insert here Topic's Title and Content (Press Enter to send)\nTitle> ");
+            if(fgets(buf, 256,stdin) != (char*)buf){
+                fprintf(stderr,"Error while reading from stdin, exiting...\n");
+                exit(EXIT_FAILURE);
+            }
+            buf[255]='\0';
+            send(socket_desc, buf,256,0);
+
+            recv(socket_desc, buf, buf_len, 0);
+            if(strncmp(buf, "content",7)){
+                printf("errore in create topic (content)");
+            }
+
+            printf("Content> ");
+            if(fgets(buf, 1024,stdin) != (char*)buf){
+                fprintf(stderr,"Error while reading from stdin, exiting...\n");
+                exit(EXIT_FAILURE);
+            }
+            buf[1023]='\0';
+            send(socket_desc, buf,1024,0);
+
+        }
         recv(socket_desc, buf, buf_len, 0);
-        if (!strcmp(buf, "help\0")){
+        if (!strncmp(buf, "help\0",4)){
             print_logo();
             print_menu();
         }
@@ -83,7 +113,7 @@ void client_loop(int socket_desc){
         }
 
         
-        //memset(buf, 0, buf_len);          // FLUSH
+        memset(buf, 0, buf_len);          // FLUSH
 
   
     } 
