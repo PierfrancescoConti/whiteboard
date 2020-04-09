@@ -18,10 +18,10 @@ whiteboard* create_wb(whiteboard* w){
   w->topicshead=(topic*) shmat(w->shmidto, NULL, 0);
   time_t date;
   time(&date);
-  *(w->topicshead)=*(new_topic(0, "admin", "First topic.", "Hello, world! This is my firs topic.", date));
+  *(w->topicshead)=*(new_topic(0, "admin\n", "First topic.\n", "Hello, world! This is my firs topic.\n", date));
   shmdt(w->topicshead);
   w->usershead=(user*) shmat(w->shmidus, NULL, 0);
-  *(w->usershead)=*(new_user(0, "admin", "admin"));
+  *(w->usershead)=*(new_user(0, "admin\n", "admin\n"));
   shmdt(w->usershead);
   return w;
 }
@@ -61,7 +61,7 @@ topic* new_topic(int id, char* author, char* title, char* content, time_t timest
   t->commentshead= (comment*)shmat(t->shmidcm, NULL, 0);  //manage comments with shared memory  //posso creare la key dello shmidcm con una operazione -> 30000+(t->id*MAX_COMMENTS)
   time_t date;
   time(&date);
-  *(t->commentshead)=*(new_comment(0, "admin", date, "Please, comment below."));  //First comment per topic!
+  *(t->commentshead)=*(new_comment(0, "admin\n", date, "Please, comment below.\n"));  //First comment per topic!
   shmdt(t->commentshead);
   t->next=NULL;
   return t;
@@ -259,9 +259,32 @@ char* here_all_topics_to_string(topic* head, char* buf){
 
 char* wb_to_string(whiteboard* w){
   char buf[32768];
-  strcpy(buf, "Here the whiteboard with all topics:\n\n");
+  strcpy(buf, "Here is the whiteboard with all topics:\n\n");
   return here_all_topics_to_string(w->topicshead, buf);
   
+}
+
+
+char* here_all_comments_to_string(comment* head, char* buf){
+  int len=strlen(buf);
+  len+=sprintf (buf+len, "\t%d. ",head->id);
+  len+=sprintf(buf+len,"%s\n", head->comm);
+  len+=sprintf(buf+len,"\t    by %s\n\n", head->author);
+  // add status? 
+  if(head->next==NULL){
+    return buf;
+  }
+  return here_all_comments_to_string(head->next, buf);
+}
+
+char* tp_to_string(topic* t){
+  char buf[32768];
+  strcpy(buf, "Here is the chosen topic with all his comments:\n\n");
+  int len=strlen(buf);
+  len+=sprintf (buf+len, "%d. ",t->id);
+  len+=sprintf(buf+len,"%s\n", t->title);
+  len+=sprintf(buf+len,"    by %s\n\n", t->author);
+  return here_all_comments_to_string(t->commentshead, buf);
 }
 
 

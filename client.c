@@ -39,7 +39,8 @@ void print_logo(){
 void print_menu(){      //help
     printf("MENU:\n\n");
     printf("-> help\n");
-    printf("-> list [messages|topics]\n");
+    printf("-> list topics\n");
+    printf("-> topic [topic#]\n");
     printf("-> get [message#]\n");
     printf("-> status [message#]\n");
     printf("-> reply [message#]\n");
@@ -71,7 +72,7 @@ void client_loop(int socket_desc){
             }
             choice[strlen(choice)-1]='\0';
         }
-        while(!(strcmp(choice,"help")==0 || strcmp(choice,"list messages")==0 || strcmp(choice,"list topics")==0 || strncmp(choice, "get ",4)==0 || strncmp(choice, "status ",7)==0 || strcmp(choice, "create topic") == 0 || strncmp(choice, "reply ",6) == 0 || strncmp(choice, "delete ",7) == 0 || strncmp(choice, "subscribe ",10) == 0 || strncmp(choice, "append ",7) == 0 || strcmp(choice, "quit") == 0));
+        while(!(strcmp(choice,"help")==0 || strncmp(choice,"topic ",6)==0 || strcmp(choice,"list topics")==0 || strncmp(choice, "get ",4)==0 || strncmp(choice, "status ",7)==0 || strcmp(choice, "create topic") == 0 || strncmp(choice, "reply ",6) == 0 || strncmp(choice, "delete ",7) == 0 || strncmp(choice, "subscribe ",10) == 0 || strncmp(choice, "append ",7) == 0 || strcmp(choice, "quit") == 0));
         send(socket_desc, choice,strlen(choice),0);
         if (!strcmp(choice, "quit")) break;
         else if(!strcmp(choice, "create topic")){

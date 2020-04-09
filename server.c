@@ -7,6 +7,7 @@
 
 void app_loop(int shmidwb, int socket_desc, char* current_user){
   int ret, recv_bytes;
+  int current_tp_id=0;
   char* buf=(char*)malloc(1024*sizeof(char));
   size_t buf_len = 1024;
   char* resp=(char*)malloc(32768*sizeof(char));
@@ -22,8 +23,40 @@ void app_loop(int shmidwb, int socket_desc, char* current_user){
     }
 
 
-    if (strncmp(buf, "list messages",13) == 0) {           // maybe edit with "topic [topic#]"
-       // do something
+    if (strncmp(buf, "topic ",6) == 0) {
+      char d='a';
+      int number=0;
+      int i=6;
+      while(d!='\0'){
+        d=buf[i];
+        // printf("d: %c\n", d);
+        if(!isdigit(d)){
+          strcpy(resp, "Invalid topic\0");
+          break;
+        }
+            int digit = d - '0';
+            number = number*10 + digit;
+        i++;
+      }
+      // printf("num: %d\n", number);
+      whiteboard* w = (whiteboard*) shmat(shmidwb, NULL, 0);
+      w->topicshead = (topic*) shmat(w->shmidto, NULL, 0);
+
+      topic* t=get_topic(w,number);
+      t->commentshead = (comment*) shmat(t->shmidcm, NULL, 0);
+      
+      if(t==NULL) strcpy(resp, "Invalid topic\0");
+      else{
+        current_tp_id=t->id;    // important!
+        strcpy(resp, tp_to_string(t));
+        strcat(resp, "\0");
+      } 
+
+
+      shmdt(t->commentshead);
+      shmdt(w->topicshead);
+      shmdt(w);
+
     } 
     else if (strncmp(buf, "list topics",11) == 0) {
       whiteboard* w = (whiteboard*) shmat(shmidwb, NULL, 0);

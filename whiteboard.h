@@ -131,6 +131,9 @@ void print_users(whiteboard* w);  //DEBUG
 char* here_all_topics_to_string(topic* head, char* buf);
 char* wb_to_string(whiteboard* w);
 
+char* here_all_comments_to_string(comment* head, char* buf);
+char* tp_to_string(topic* t);
+
 
 
 
