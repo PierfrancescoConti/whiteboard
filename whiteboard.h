@@ -44,11 +44,20 @@ https://stackoverflow.com/questions/16655563/pointers-and-linked-list-with-share
 
 typedef struct cm{
   int id;
+  //int in_reply_to;    // -1 if none
+  //int replies[50];
   time_t timestamp;
   char author[32];
   char comm[1024];
   struct cm* next;
 } comment;
+
+typedef struct usr{
+  int id;
+  char username[32];
+  char password[32];
+  struct usr* next;
+} user;
 
 typedef struct tp{
   int id;
@@ -58,15 +67,9 @@ typedef struct tp{
   char author[32];
   char title[256];
   char content[1024];
+  int subscribers[128];
   struct tp* next;
 } topic;
-
-typedef struct usr{
-  int id;
-  char username[32];
-  char password[32];
-  struct usr* next;
-} user;
 
 typedef struct wbadmin{
   int shmidto;
@@ -78,7 +81,9 @@ typedef struct wbadmin{
 
 
 ///////////////// FUNCTIONS /////////////////
-// TODO: semaphores in main for each function
+// TODO: semaphores in main for each function or before&after shmat&shmdt
+// TODO: subscribers_pool (lista di topic aggiornati ordinata per userid) -> struct con campi *userid* e *lista_topics_id_subscribed* (e magari anche *next*)
+
 
 // creation     //for each creation, I have to define it's shmat first and shmdt then
 whiteboard* create_wb(whiteboard* w);
@@ -95,6 +100,15 @@ void add_user(whiteboard* w, user* u);
 
 void append_comment(comment* head, comment* c);
 void push_comment(topic* t, comment* c);    // whiteboard modified? -> update_topic
+
+void add_subscriber(topic* t, int userid);
+
+// deletion
+void del_tp(topic* head, int id_tp);
+void delete_topic(whiteboard* w, int id_tp);
+
+void del_cm(comment* head, int id_cm);
+void delete_comment(topic* t, int id_cm);
 
 
 // getters
@@ -113,7 +127,11 @@ user* get_user_by_usname(whiteboard* w, char* username);
 user* get_last_u(user* head);
 user* get_last_user(whiteboard* w);
 
-// get_comment?
+comment* find_comment(comment* head, int id_comment);
+comment* get_comment(topic* t, int id_comment);
+
+comment* get_last_c(comment* head);
+comment* get_last_comment(topic* t);
 
 
 // printers

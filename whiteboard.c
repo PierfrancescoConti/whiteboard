@@ -64,6 +64,7 @@ topic* new_topic(int id, char* author, char* title, char* content, time_t timest
   *(t->commentshead)=*(new_comment(0, "admin\n", date, "Please, comment below.\n"));  //First comment per topic!
   shmdt(t->commentshead);
   t->next=NULL;
+  memset(t->subscribers, (int) -1, 128);
   return t;
 }
 
@@ -127,6 +128,57 @@ void push_comment(topic* t, comment* c){
   append_comment(t->commentshead, c);
 }
 
+void add_subscriber(topic* t, int userid){
+  int i;
+  printf("subs: \n");
+  for(i=0;i<128;i++){
+    printf("%d ",t->subscribers[i]);
+    if(t->subscribers[i]==-1){
+      t->subscribers[i]=userid;
+      break;
+    }
+  }
+}
+
+
+
+
+
+
+// deletion
+void del_tp(topic* head, int id_tp){
+  if(head->next==NULL){
+    return;
+  }
+  if((head->next)->id==id_tp){
+    topic* tmp=head->next;
+    head->next=tmp->next;
+  }
+  else return del_tp(head->next, id_tp);
+}
+
+
+void delete_topic(whiteboard* w, int id_tp){
+  del_tp(w->topicshead, id_tp);
+}
+
+
+void del_cm(comment* head, int id_cm){
+  if(head->next==NULL){
+    return;
+  }
+  if((head->next)->id==id_cm){
+    comment* tmp=head->next;
+    head->next=tmp->next;
+  }
+  else return del_cm(head->next, id_cm);
+}
+
+void delete_comment(topic* t, int id_cm){
+  del_cm(t->commentshead, id_cm);
+}
+
+
 
 
 
@@ -167,7 +219,11 @@ user* get_user(whiteboard* w, int id_user){
 
 
 user* find_user_by_usname(user* head, char* username){
-  if(!strcmp(head->username, username)) return head;
+  //printf("curr_us: %s  -  u->usn:%s\n",username,head->username);     //DEBUG
+
+  if(!strcmp(head->username, username)){
+    return head;
+  }
   if (head->next==NULL) return NULL;
   return find_user_by_usname(head->next, username);
 }
@@ -183,6 +239,26 @@ user* get_last_u(user* head){
 
 user* get_last_user(whiteboard* w){
   return get_last_u(w->usershead);
+}
+
+
+comment* find_comment(comment* head, int id_comment){
+  if(head->id == id_comment) return head;
+  if (head->next==NULL) return NULL;
+  return find_comment(head->next, id_comment);
+}
+
+comment* get_comment(topic* t, int id_comment){
+  return find_comment(t->commentshead, id_comment);
+}
+
+comment* get_last_c(comment* head){
+  if (head->next==NULL) return head;
+  return get_last_c(head->next);
+}
+
+comment* get_last_comment(topic* t){
+  return get_last_c(t->commentshead);
 }
 
 

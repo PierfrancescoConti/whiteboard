@@ -2,12 +2,25 @@
 #include "whiteboard.h"
 
 ///////////////POSSIBILI ALTRI INCLUDE///////////////
-
+int get_digit(char* buf, int i){    // i is the num's starting index
+  char d='a';
+  int number=0;
+  while(d!='\0'){
+    d=buf[i];
+    // printf("d: %c\n", d);
+    if(!isdigit(d)) break;
+    
+    int digit = d - '0';
+    number = number*10 + digit;
+    i++;
+  }
+  return number;
+}
 
 
 void app_loop(int shmidwb, int socket_desc, char* current_user){
   int ret, recv_bytes;
-  int current_tp_id=0;
+  int current_tp_id=-1;
   char* buf=(char*)malloc(1024*sizeof(char));
   size_t buf_len = 1024;
   char* resp=(char*)malloc(32768*sizeof(char));
@@ -22,42 +35,37 @@ void app_loop(int shmidwb, int socket_desc, char* current_user){
       ERROR_HELPER(-1, "Cannot read from socket");
     }
 
-
+    ////////// choose topic //////////
     if (strncmp(buf, "topic ",6) == 0) {
       char d='a';
-      int number=0;
-      int i=6;
-      while(d!='\0'){
-        d=buf[i];
-        // printf("d: %c\n", d);
-        if(!isdigit(d)){
-          strcpy(resp, "Invalid topic\0");
-          break;
-        }
-            int digit = d - '0';
-            number = number*10 + digit;
-        i++;
+      int number=get_digit(buf, 6);
+      if(number==-1){
+        strcpy(resp, "Invalid topic\0");
       }
-      // printf("num: %d\n", number);
-      whiteboard* w = (whiteboard*) shmat(shmidwb, NULL, 0);
-      w->topicshead = (topic*) shmat(w->shmidto, NULL, 0);
-
-      topic* t=get_topic(w,number);
-      t->commentshead = (comment*) shmat(t->shmidcm, NULL, 0);
-      
-      if(t==NULL) strcpy(resp, "Invalid topic\0");
       else{
-        current_tp_id=t->id;    // important!
-        strcpy(resp, tp_to_string(t));
-        strcat(resp, "\0");
-      } 
+        // printf("num: %d\n", number);
+        whiteboard* w = (whiteboard*) shmat(shmidwb, NULL, 0);
+        w->topicshead = (topic*) shmat(w->shmidto, NULL, 0);
 
+        topic* t=get_topic(w,number);
+        t->commentshead = (comment*) shmat(t->shmidcm, NULL, 0);
 
-      shmdt(t->commentshead);
-      shmdt(w->topicshead);
-      shmdt(w);
+        if(t==NULL) strcpy(resp, "Invalid topic\0");
+        else{
+          current_tp_id=t->id;    // important!
+          strcpy(resp, tp_to_string(t));
+          strcat(resp, "\0");
+        }
+      
+        shmdt(t->commentshead);
+        shmdt(w->topicshead);
+        shmdt(w);
+      }
+      printf("current_tp_id: %d\n",current_tp_id);
+      
 
     } 
+    ////////// list topics //////////
     else if (strncmp(buf, "list topics",11) == 0) {
       whiteboard* w = (whiteboard*) shmat(shmidwb, NULL, 0);
       w->topicshead = (topic*) shmat(w->shmidto, NULL, 0);
@@ -71,17 +79,21 @@ void app_loop(int shmidwb, int socket_desc, char* current_user){
       shmdt(w->topicshead);
       shmdt(w);
       // printf("%s\n", resp);   //DEBUG
-     } 
-     else if (strncmp(buf, "get ",4) == 0) {
-       // do something
-     } 
-     else if (strncmp(buf, "status ",7) == 0) {
-       // do something
-     } 
-     else if (strncmp(buf, "reply ",6) == 0) {
-       // do something
-     }
-     else if (strncmp(buf, "create topic",12) == 0) {
+    } 
+    ////////// get comment //////////
+    else if (strncmp(buf, "get ",4) == 0) {
+      // do something
+    } 
+    ////////// status comment //////////
+    else if (strncmp(buf, "status ",7) == 0) {
+      // do something
+    } 
+    ////////// reply to comment //////////
+    else if (strncmp(buf, "reply ",6) == 0) {
+      // do something
+    }
+    ////////// create topic //////////
+    else if (strncmp(buf, "create topic",12) == 0) {
       char* title=(char*)malloc(256*sizeof(char));
       char* content=(char*)malloc(1024*sizeof(char));
 
@@ -112,28 +124,115 @@ void app_loop(int shmidwb, int socket_desc, char* current_user){
       strcpy(resp, "Topic created successfully!");
       strcat(resp, "\0");
 
-     } 
-     else if (strncmp(buf, "append ",7) == 0) {
-       // do something
-     } 
-     else if (strncmp(buf, "subscribe ",10) == 0) {
-       // do something
-     } 
-     else if (strncmp(buf, "delete ",7) == 0) {
-       // do something
-     } 
-     else if (strncmp(buf, "quit",4) == 0) {
-      break;
-     }
+    } 
+    ////////// add comment //////////
+    else if (strncmp(buf, "add comment",11) == 0) {
+      if(current_tp_id!=-1){
+        printf("aaa\n");
+        char* content=(char*)malloc(1024*sizeof(char));
 
-     else /* default: */{
-       strcpy(resp, "help\0");
-     }
+        send(socket_desc, "content\0",9,0);
+
+        recv(socket_desc, content, 1024, 0);
+
+        whiteboard* w = (whiteboard*) shmat(shmidwb, NULL, 0);
+        w->topicshead = (topic*) shmat(w->shmidto, NULL, 0);
+
+        time_t date;
+        time(&date);
+
+        topic* t=get_topic(w, current_tp_id);
+        //create comment and add
+        t->commentshead = (comment*) shmat(t->shmidcm, NULL, 0);
+
+        comment* last=get_last_comment(t);
+        comment* c=new_comment(last->id+1, current_user, date, content);
+        push_comment(t,c);
+
+        shmdt(t->commentshead);
+        shmdt(w->topicshead);
+        shmdt(w);
+
+
+        free(content);
+
+        strcpy(resp, "Comment added successfully!\0");
+      }
+      else{
+        strcpy(resp, "At first you have to choose a topic.      (usage: topic [topic#])\0");
+        
+        send(socket_desc, resp,strlen(resp),0);
+        recv(socket_desc, buf, buf_len, 0);
+        
+      }
+      
+    } 
+    ////////// subscribe to topic //////////
+    else if (strncmp(buf, "subscribe",9) == 0) {
+      if(current_tp_id!=-1){
+        whiteboard* w = (whiteboard*) shmat(shmidwb, NULL, 0);
+        w->topicshead = (topic*) shmat(w->shmidto, NULL, 0);
+        w->usershead = (user*) shmat(w->shmidus, NULL, 0);
+
+        user* u=get_user_by_usname(w, current_user);
+        //if(u==NULL) printf("NULL\n");     //DEBUG
+        //printf("us: %s\n",u->username);     //DEBUG
+        topic* t=get_topic(w, current_tp_id);
+        //printf("us: %s  -  tp:%d\n",u->username,t->id);     //DEBUG
+        add_subscriber(t,u->id);
+        //printf("Subscribers:\n");     //DEBUG
+        //printf("%d-%d\n",t->subscribers[0],t->subscribers[1]);     //DEBUG
+
+        shmdt(w->usershead);
+        shmdt(w->topicshead);
+        shmdt(w);
+        strcpy(resp, "Subscribed.\0");
+      }
+      else strcpy(resp, "At first you have to choose a topic.      (usage: topic [topic#])\0");
+      
+    } 
+    ////////// delete topic //////////
+    else if (strncmp(buf, "delete topic ",13) == 0) {
+      int number=get_digit(buf, 13);
+      //printf("%d\n",number);    //DEBUG
+      if(number==-1) strcpy(resp, "I don't understand which topic I should delete.\0");
+      else{
+        whiteboard* w = (whiteboard*) shmat(shmidwb, NULL, 0);
+        w->topicshead = (topic*) shmat(w->shmidto, NULL, 0);
+
+        topic* t= get_topic(w,number);
+        if(!(t==NULL)){
+          
+          char cu[32];                //DEBUG       FAI ATTENZIONE AL '\n' NELL'USNAME
+          strcpy(cu, current_user);   //DEBUG       quindi forse devi togliere tutto
+          cu[strlen(cu)-1]='\0';      //DEBUG       anche questo
+          //printf("%s--%s\n",t->author,cu);    //DEBUG
+          if(!strcmp(t->author,cu)){
+            delete_topic(w, number);
+            strcpy(resp, "Deleted successfully.\0");
+          }
+          else strcpy(resp, "Only topic's author can delete it.\0");
+        }
+        else strcpy(resp, "This topic does not exist.\0");
+
+        shmdt(w->topicshead);
+        shmdt(w);
+      }
+      
+    }
+    ////////// quit //////////
+    else if (strncmp(buf, "quit",4) == 0) {
+      break;
+    }
+    ////////// help //////////
+    else /* default: */{
+      strcpy(resp, "help\0");
+    }
     
     send(socket_desc, resp,strlen(resp),0);
 
   }
-  printf("free\n");
+  //printf("free\n");     //DEBUG
 
   free(buf);
   free(resp);
@@ -212,9 +311,9 @@ void* connection_handler(int shmidwb, int socket_desc, struct sockaddr_in* clien
       app_loop(shmidwb, socket_desc, current_user);
 
     }
-    */app_loop(shmidwb, socket_desc, "user_test");   // DEBUG: auth bypass (cancellare questa riga e decommentare)
+    */app_loop(shmidwb, socket_desc, "admin\n");   // DEBUG: auth bypass (cancellare questa riga e decommentare)
 	// close socket
-  printf("closing....\n");     // DEBUG
+  //printf("closing....\n");     // DEBUG
 	ret = close(socket_desc);
 	ERROR_HELPER(ret, "Cannot close socket for incoming connection");
 	free(buf);
