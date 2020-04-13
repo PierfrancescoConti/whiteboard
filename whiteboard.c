@@ -26,7 +26,7 @@ whiteboard* create_wb(whiteboard* w){
   return w;
 }
 
-comment* new_comment(int id, char* author, time_t timestamp, char* comm){
+comment* new_comment(int id, char* author, time_t timestamp, char* comm, int reply_id){
   comment* c = (comment*) malloc(sizeof(comment));
   c->id=id;
   c->timestamp=timestamp;
@@ -38,6 +38,9 @@ comment* new_comment(int id, char* author, time_t timestamp, char* comm){
   c->comm[strlen(c->comm)-1]='\0';  // stringa troncata se troppo lunga
 
   c->next=NULL;
+  c->in_reply_to=reply_id;
+
+  memset(c->replies, -1, 128*sizeof(int));
   return c;
 }
 
@@ -61,10 +64,10 @@ topic* new_topic(int id, char* author, char* title, char* content, time_t timest
   t->commentshead= (comment*)shmat(t->shmidcm, NULL, 0);  //manage comments with shared memory  //posso creare la key dello shmidcm con una operazione -> 30000+(t->id*MAX_COMMENTS)
   time_t date;
   time(&date);
-  *(t->commentshead)=*(new_comment(0, "admin\n", date, "Please, comment below.\n"));  //First comment per topic!
+  *(t->commentshead)=*(new_comment(0, "admin\n", date, "Please, comment below.\n",-1));  //First comment per topic!
   shmdt(t->commentshead);
   t->next=NULL;
-  memset(t->subscribers, (int) -1, 128);
+  memset(t->subscribers, -1, 128*sizeof(int));
   return t;
 }
 
@@ -130,15 +133,26 @@ void push_comment(topic* t, comment* c){
 
 void add_subscriber(topic* t, int userid){
   int i;
-  printf("subs: \n");
   for(i=0;i<128;i++){
-    printf("%d ",t->subscribers[i]);
     if(t->subscribers[i]==-1){
       t->subscribers[i]=userid;
       break;
     }
   }
 }
+
+
+void add_reply(comment* r,int id_comm){
+  int i;
+  for(i=0;i<128;i++){
+    if(r->replies[i]==-1){
+      r->replies[i]=id_comm;
+      break;
+    }
+  }
+  print_replies(r);
+}
+
 
 
 
@@ -315,6 +329,14 @@ void print_users(whiteboard* w){  //DEBUG
 
 }
 
+void print_replies(comment* r){
+  int i;
+  printf("replies: ");
+  for(i=0;i<128 && r->replies[i]!=-1;i++){
+    printf("%d ",r->replies[i]);
+  }
+  printf("\n");
+}
 
 
 
@@ -509,7 +531,7 @@ void main(){    // WARNING: no shared memory
   time(&date);
   topic* t = new_topic(0, "me", "hello", "hello world!", date);
   add_topic(w, t);
-  comment* c = new_comment(0, "me", date, "this is a comment");
+  comment* c = new_comment(0, "me", date, "this is a comment",-1);
   push_comment(t, c);
   print_wb(w);
   return;

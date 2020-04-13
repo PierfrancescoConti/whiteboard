@@ -54,7 +54,7 @@ void print_menu(){      //help
     printf("--------------------------------------------------------------------------------------------------------\n");
     printf("-> \033[1;34mreply [comment#]       \033[0m|-  You can write a comment as response to another comment.\n");
     printf("--------------------------------------------------------------------------------------------------------\n");
-    printf("-> \033[1;34mget [comment#]         \033[0m|-  It shows all the info about the comment you decide inside \n                          |   the current topic.\n");
+    printf("-> \033[1;34mget [comment#]         \033[0m|-  It shows all the info about the comment you decide inside\n                          |   the current topic.\n");
     printf("--------------------------------------------------------------------------------------------------------\n");
     printf("-> \033[1;34mstatus [comment#]      \033[0m|-  It shows the status of the comment you decide inside the current topic.\n");
     printf("--------------------------------------------------------------------------------------------------------\n");
@@ -130,6 +130,23 @@ void client_loop(int socket_desc){
             }
 
         }
+        else if(!strncmp(choice, "reply ",6)){
+            recv(socket_desc, buf, buf_len, 0);
+            if(strncmp(buf, "content",7)){
+                send(socket_desc, "NO\0",3,0);
+                printf("errore in add comment (content)");
+            }
+            else{
+                printf("Insert here the Comment to the current Topic. (Press Enter to send)\nComment> ");
+                if(fgets(buf, 1024,stdin) != (char*)buf){
+                    fprintf(stderr,"Error while reading from stdin, exiting...\n");
+                    exit(EXIT_FAILURE);
+                }
+                buf[1023]='\0';
+                send(socket_desc, buf,1024,0);
+            }
+
+        }
         recv(socket_desc, buf, buf_len, 0);
         if (!strncmp(buf, "help\0",4)){
             print_logo();
@@ -143,6 +160,7 @@ void client_loop(int socket_desc){
 
         
         memset(buf, 0, buf_len);          // FLUSH
+        memset(choice, 0, 32);          // FLUSH
 
   
     } 

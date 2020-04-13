@@ -35,6 +35,7 @@ https://stackoverflow.com/questions/16655563/pointers-and-linked-list-with-share
 // TODO:
 //      - edit each function to interact with shared memories - which shmid should each field have? which size?
 //      - free malloc after adding.
+//      - test.c (automated client that does things)
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
@@ -44,11 +45,12 @@ https://stackoverflow.com/questions/16655563/pointers-and-linked-list-with-share
 
 typedef struct cm{
   int id;
-  //int in_reply_to;    // -1 if none
-  //int replies[50];
+  int in_reply_to;    // -1 if none
+  int replies[128];
   time_t timestamp;
   char author[32];
   char comm[1024];
+  //status
   struct cm* next;
 } comment;
 
@@ -87,7 +89,7 @@ typedef struct wbadmin{
 
 // creation     //for each creation, I have to define it's shmat first and shmdt then
 whiteboard* create_wb(whiteboard* w);
-comment* new_comment(int id, char* author, time_t timestamp, char* comment);
+comment* new_comment(int id, char* author, time_t timestamp, char* comment, int reply_id);
 topic* new_topic(int id, char* author, char* title, char* content, time_t timestamp);
 user* new_user(int id, char* username, char* password);
 
@@ -102,6 +104,7 @@ void append_comment(comment* head, comment* c);
 void push_comment(topic* t, comment* c);    // whiteboard modified? -> update_topic
 
 void add_subscriber(topic* t, int userid);
+void add_reply(comment* r,int id_comm);
 
 // deletion
 void del_tp(topic* head, int id_tp);
@@ -151,6 +154,8 @@ char* wb_to_string(whiteboard* w);
 
 char* here_all_comments_to_string(comment* head, char* buf);
 char* tp_to_string(topic* t);
+
+void print_replies(comment* r);
 
 
 

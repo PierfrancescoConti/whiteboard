@@ -4,6 +4,8 @@
 ///////////////POSSIBILI ALTRI INCLUDE///////////////
 int get_digit(char* buf, int i){    // i is the num's starting index
   char d='a';
+  d=buf[i];
+  if(!isdigit(d)) return -1;
   int number=0;
   while(d!='\0'){
     d=buf[i];
@@ -30,6 +32,9 @@ void app_loop(int shmidwb, int socket_desc, char* current_user){
   while(1){
 
     // printf("... entering app_loop\n");   //DEBUG
+    memset(buf, 0, buf_len);          // FLUSH
+    memset(resp, 0, resp_len);          // FLUSH
+
     while((recv(socket_desc, buf, buf_len, 0)) < 0 ) {
       if(errno == EINTR) continue;
       ERROR_HELPER(-1, "Cannot read from socket");
@@ -48,16 +53,18 @@ void app_loop(int shmidwb, int socket_desc, char* current_user){
         w->topicshead = (topic*) shmat(w->shmidto, NULL, 0);
 
         topic* t=get_topic(w,number);
-        t->commentshead = (comment*) shmat(t->shmidcm, NULL, 0);
+        
 
         if(t==NULL) strcpy(resp, "Invalid topic\0");
         else{
+          t->commentshead = (comment*) shmat(t->shmidcm, NULL, 0);
           current_tp_id=t->id;    // important!
           strcpy(resp, tp_to_string(t));
           strcat(resp, "\0");
+          shmdt(t->commentshead); 
         }
       
-        shmdt(t->commentshead);
+        
         shmdt(w->topicshead);
         shmdt(w);
       }
@@ -90,7 +97,71 @@ void app_loop(int shmidwb, int socket_desc, char* current_user){
     } 
     ////////// reply to comment //////////
     else if (strncmp(buf, "reply ",6) == 0) {
-      // do something
+      if(current_tp_id!=-1){
+        //printf("aaa\n");
+
+        char d='a';
+        int number=get_digit(buf, 6);
+        if(number==-1){
+          strcpy(resp, "Invalid comment\0");
+          send(socket_desc, resp,strlen(resp),0);
+          recv(socket_desc, buf, buf_len, 0);
+        }
+        else{
+          whiteboard* w = (whiteboard*) shmat(shmidwb, NULL, 0);
+          w->topicshead = (topic*) shmat(w->shmidto, NULL, 0);
+
+          topic* t=get_topic(w, current_tp_id);
+          //create comment and add
+          t->commentshead = (comment*) shmat(t->shmidcm, NULL, 0);
+          comment* r=get_comment(t,number);    // check if number (reply_id) exists
+          if(!(r==NULL)){
+            char* content=(char*)malloc(1024*sizeof(char));
+
+            send(socket_desc, "content\0",9,0);
+
+            recv(socket_desc, content, 1024, 0);
+
+
+
+            time_t date;
+            time(&date);
+
+
+            comment* last=get_last_comment(t);    // check if number (reply_id) exists
+            comment* c=new_comment(last->id+1, current_user, date, content, number);
+            push_comment(t,c);
+            add_reply(r,c->id);
+
+            //printf("RID: %d\n", c->in_reply_to);
+
+            shmdt(t->commentshead);
+            shmdt(w->topicshead);
+            shmdt(w);
+
+
+            free(content);
+
+            strcpy(resp, "Comment added successfully!\0");
+          }
+          else{
+            strcpy(resp, "Invalid comment\0");
+            send(socket_desc, resp,strlen(resp),0);
+            recv(socket_desc, buf, buf_len, 0);
+          }
+
+
+
+          
+        }
+      }
+      else{
+        strcpy(resp, "At first you have to choose a topic.      (usage: topic [topic#])\0");
+        
+        send(socket_desc, resp,strlen(resp),0);
+        recv(socket_desc, buf, buf_len, 0);
+        
+      }
     }
     ////////// create topic //////////
     else if (strncmp(buf, "create topic",12) == 0) {
@@ -128,7 +199,7 @@ void app_loop(int shmidwb, int socket_desc, char* current_user){
     ////////// add comment //////////
     else if (strncmp(buf, "add comment",11) == 0) {
       if(current_tp_id!=-1){
-        printf("aaa\n");
+        //printf("aaa\n");
         char* content=(char*)malloc(1024*sizeof(char));
 
         send(socket_desc, "content\0",9,0);
@@ -146,7 +217,7 @@ void app_loop(int shmidwb, int socket_desc, char* current_user){
         t->commentshead = (comment*) shmat(t->shmidcm, NULL, 0);
 
         comment* last=get_last_comment(t);
-        comment* c=new_comment(last->id+1, current_user, date, content);
+        comment* c=new_comment(last->id+1, current_user, date, content,-1);
         push_comment(t,c);
 
         shmdt(t->commentshead);
