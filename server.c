@@ -45,7 +45,7 @@ void app_loop(int shmidwb, int socket_desc, char* current_user){
       char d='a';
       int number=get_digit(buf, 6);
       if(number==-1){
-        strcpy(resp, "Invalid topic\0");
+        strcpy(resp, "\033[41;1m   Invalid topic                                                                                        \033[0m\0");
       }
       else{
         // printf("num: %d\n", number);
@@ -55,7 +55,7 @@ void app_loop(int shmidwb, int socket_desc, char* current_user){
         topic* t=get_topic(w,number);
         
 
-        if(t==NULL) strcpy(resp, "Invalid topic\0");
+        if(t==NULL) strcpy(resp, "\033[41;1m   Invalid topic                                                                                        \033[0m\0");
         else{
           t->commentshead = (comment*) shmat(t->shmidcm, NULL, 0);
           current_tp_id=t->id;    // important!
@@ -103,7 +103,7 @@ void app_loop(int shmidwb, int socket_desc, char* current_user){
         char d='a';
         int number=get_digit(buf, 6);
         if(number==-1){
-          strcpy(resp, "Invalid comment\0");
+          strcpy(resp, "\033[41;1m   Invalid comment                                                                                      \033[0m\0");
           send(socket_desc, resp,strlen(resp),0);
           recv(socket_desc, buf, buf_len, 0);
         }
@@ -142,10 +142,10 @@ void app_loop(int shmidwb, int socket_desc, char* current_user){
 
             free(content);
 
-            strcpy(resp, "Comment added successfully!\0");
+            strcpy(resp, "\033[42;1m   Comment added successfully!                                                                                 \033[0m\0");
           }
           else{
-            strcpy(resp, "Invalid comment\0");
+            strcpy(resp, "\033[41;1m   Invalid comment                                                                                      \033[0m\0");
             send(socket_desc, resp,strlen(resp),0);
             recv(socket_desc, buf, buf_len, 0);
           }
@@ -156,7 +156,7 @@ void app_loop(int shmidwb, int socket_desc, char* current_user){
         }
       }
       else{
-        strcpy(resp, "At first you have to choose a topic.      (usage: topic [topic#])\0");
+        strcpy(resp, "\033[41;1m   At first you have to choose a topic.      (usage: topic [topic#])                                    \033[0m\0");
         
         send(socket_desc, resp,strlen(resp),0);
         recv(socket_desc, buf, buf_len, 0);
@@ -192,7 +192,7 @@ void app_loop(int shmidwb, int socket_desc, char* current_user){
       free(content);
       free(title);
 
-      strcpy(resp, "Topic created successfully!");
+      strcpy(resp, "\033[42;1m   Topic created successfully!                                                                                 \033[0m");
       strcat(resp, "\0");
 
     } 
@@ -227,10 +227,10 @@ void app_loop(int shmidwb, int socket_desc, char* current_user){
 
         free(content);
 
-        strcpy(resp, "Comment added successfully!\0");
+        strcpy(resp, "\033[42;1m   Comment added successfully!                                                                                 \033[0m\0");
       }
       else{
-        strcpy(resp, "At first you have to choose a topic.      (usage: topic [topic#])\0");
+        strcpy(resp, "\033[41;1m   At first you have to choose a topic.      (usage: topic [topic#])                                    \033[0m\0");
         
         send(socket_desc, resp,strlen(resp),0);
         recv(socket_desc, buf, buf_len, 0);
@@ -257,11 +257,11 @@ void app_loop(int shmidwb, int socket_desc, char* current_user){
         shmdt(w->usershead);
         shmdt(w->topicshead);
         shmdt(w);
-        strcpy(resp, "Subscribed.\0");
+        strcpy(resp, "\033[42;1m   Subscribed.                                                                                          \033[0m\0");
       }
-      else strcpy(resp, "At first you have to choose a topic.      (usage: topic [topic#])\0");
-      
+      else strcpy(resp, "\033[41;1m   At first you have to choose a topic.      (usage: topic [topic#])                                    \033[0m\0");
     } 
+
     ////////// delete topic //////////
     else if (strncmp(buf, "delete topic ",13) == 0) {
       int number=get_digit(buf, 13);
@@ -280,11 +280,11 @@ void app_loop(int shmidwb, int socket_desc, char* current_user){
           //printf("%s--%s\n",t->author,cu);    //DEBUG
           if(!strcmp(t->author,cu)){
             delete_topic(w, number);
-            strcpy(resp, "Deleted successfully.\0");
+            strcpy(resp, "\033[42;1m   Deleted successfully.                                                                                 \033[0m\0");
           }
-          else strcpy(resp, "Only topic's author can delete it.\0");
+          else strcpy(resp, "\033[41;1m   Only topic's author can delete it.                                                                                \033[0m\0");
         }
-        else strcpy(resp, "This topic does not exist.\0");
+        else strcpy(resp, "\033[41;1m   This topic does not exist.                                                                              \033[0m\0");
 
         shmdt(w->topicshead);
         shmdt(w);

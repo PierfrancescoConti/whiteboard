@@ -40,7 +40,7 @@ comment* new_comment(int id, char* author, time_t timestamp, char* comm, int rep
   c->next=NULL;
   c->in_reply_to=reply_id;
 
-  memset(c->replies, -1, 128*sizeof(int));
+  memset(c->replies, -1, MAX_REPLIES*sizeof(int));
   return c;
 }
 
@@ -67,7 +67,7 @@ topic* new_topic(int id, char* author, char* title, char* content, time_t timest
   *(t->commentshead)=*(new_comment(0, "admin\n", date, "Please, comment below.\n",-1));  //First comment per topic!
   shmdt(t->commentshead);
   t->next=NULL;
-  memset(t->subscribers, -1, 128*sizeof(int));
+  memset(t->subscribers, -1, MAX_REPLIES*sizeof(int));
   return t;
 }
 
@@ -133,7 +133,7 @@ void push_comment(topic* t, comment* c){
 
 void add_subscriber(topic* t, int userid){
   int i;
-  for(i=0;i<128;i++){
+  for(i=0;i<MAX_SUBSCRIBERS;i++){
     if(t->subscribers[i]==-1){
       t->subscribers[i]=userid;
       break;
@@ -144,13 +144,13 @@ void add_subscriber(topic* t, int userid){
 
 void add_reply(comment* r,int id_comm){
   int i;
-  for(i=0;i<128;i++){
+  for(i=0;i<MAX_REPLIES;i++){
     if(r->replies[i]==-1){
       r->replies[i]=id_comm;
       break;
     }
   }
-  print_replies(r);
+  //print_replies(r);
 }
 
 
@@ -332,13 +332,20 @@ void print_users(whiteboard* w){  //DEBUG
 void print_replies(comment* r){
   int i;
   printf("replies: ");
-  for(i=0;i<128 && r->replies[i]!=-1;i++){
+  for(i=0;i<MAX_REPLIES && r->replies[i]!=-1;i++){
     printf("%d ",r->replies[i]);
   }
   printf("\n");
 }
 
-
+void print_arr(int* arr){
+  int i;
+  printf("arr: ");
+  for(i=0;i<MAX_REPLIES && arr[i]!=-1;i++){
+    printf("%d ",arr[i]);
+  }
+  printf("\n");
+}
 
 
 
@@ -363,16 +370,14 @@ char* wb_to_string(whiteboard* w){
 }
 
 
-char* here_all_comments_to_string(comment* head, char* buf){
-  int len=strlen(buf);
-  len+=sprintf (buf+len, "\t%d. ",head->id);
-  len+=sprintf(buf+len,"%s\n", head->comm);
-  len+=sprintf(buf+len,"\t    by %s\n\n", head->author);
+char* here_all_comments_to_string(topic* t, comment* head, char* buf, int* done){
+
+  buf=cm_to_string(t, head, buf, done);
   // add status? 
   if(head->next==NULL){
     return buf;
   }
-  return here_all_comments_to_string(head->next, buf);
+  return here_all_comments_to_string(t,head->next, buf, done);
 }
 
 char* tp_to_string(topic* t){
@@ -382,7 +387,60 @@ char* tp_to_string(topic* t){
   len+=sprintf (buf+len, "%d. ",t->id);
   len+=sprintf(buf+len,"%s\n", t->title);
   len+=sprintf(buf+len,"    by %s\n\n", t->author);
-  return here_all_comments_to_string(t->commentshead, buf);
+  int done[MAX_COMMENTS];
+  memset(done, -1, MAX_COMMENTS*sizeof(int));
+
+  return here_all_comments_to_string(t,t->commentshead, buf, done);
+}
+
+
+char* child_to_string(topic* t, comment* child, char* buf, int* done, int level){
+  int len=strlen(buf);
+
+  int i;
+  for(i=0;i<level;i++){
+    len+=sprintf (buf+len, "\t|");   //adds tabs
+  }
+
+  len+=sprintf (buf+len, "\t%d. ",child->id);
+  len+=sprintf(buf+len,"%s\n", child->comm);
+  for(i=0;i<level;i++){
+    len+=sprintf (buf+len, "\t|");   //adds tabs
+  }
+
+  len+=sprintf(buf+len,"\t    by %s\n\n", child->author);
+  // add status? 
+  // for child_to_string();
+  done = add_to_arr(done, child->id);
+
+  for(i=0;i<MAX_REPLIES && child->replies[i]!=-1;i++){
+    child_to_string(t, get_comment(t,child->replies[i]), buf, done, level+1);
+  }
+
+
+  return buf;
+}
+
+char* cm_to_string(topic* t, comment* head, char* buf, int* done){
+  if(int_in_arr(done, head->id)==1) return buf;
+
+  int len=strlen(buf);
+  len+=sprintf (buf+len, "\t%d. ",head->id);
+  len+=sprintf(buf+len,"%s\n", head->comm);
+  len+=sprintf(buf+len,"\t    by %s\n\n", head->author);
+  // add status? 
+  // for child_to_string();
+  //print_arr(done);    //DEBUG
+  done = add_to_arr(done, head->id);
+  //print_arr(done);    //DEBUG
+
+
+  int i;
+  for(i=0;i<MAX_REPLIES && head->replies[i]!=-1;i++){
+    child_to_string(t,get_comment(t,head->replies[i]),buf, done,1);
+  }
+
+  return buf;
 }
 
 
@@ -520,6 +578,33 @@ char* replace_char(char* str, char find, char replace){
     return str;
 }
 
+
+
+
+
+
+// utils
+int int_in_arr(int* arr, int i){
+  //print_arr(arr);     //DEBUG
+  int j;
+  for(j=0;arr[j]!=-1;j++){
+    //printf("%d -- %d",arr[j],i);     //DEBUG
+    if(arr[j]==i) return 1;
+  }
+  return 0;
+}
+
+int* add_to_arr(int* arr, int i){
+  int j;
+  for(j=0;;j++){
+    if(arr[j]==-1){
+      arr[j]=i;
+      
+      break;
+    }
+  }
+  return arr;
+}
 
 
 

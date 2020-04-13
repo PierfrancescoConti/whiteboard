@@ -16,9 +16,13 @@
 
 
 
-#define MAX_USERS 100
-#define MAX_TOPICS 100
-#define MAX_COMMENTS 100
+#define MAX_USERS 128
+#define MAX_TOPICS 128
+#define MAX_COMMENTS 128
+
+#define MAX_SUBSCRIBERS 128
+#define MAX_REPLIES 64
+
 
 #define USERS_KEY 19000
 #define TOPICS_KEY 20000
@@ -46,7 +50,7 @@ https://stackoverflow.com/questions/16655563/pointers-and-linked-list-with-share
 typedef struct cm{
   int id;
   int in_reply_to;    // -1 if none
-  int replies[128];
+  int replies[MAX_REPLIES];
   time_t timestamp;
   char author[32];
   char comm[1024];
@@ -69,7 +73,7 @@ typedef struct tp{
   char author[32];
   char title[256];
   char content[1024];
-  int subscribers[128];
+  int subscribers[MAX_SUBSCRIBERS];
   struct tp* next;
 } topic;
 
@@ -147,16 +151,21 @@ void print_tp(topic* t);
 void here_all_users(user* head);  //DEBUG
 void print_users(whiteboard* w);  //DEBUG
 
+void print_replies(comment* r);
+void print_arr(int* arr);
+
+
+
 
 // to string
 char* here_all_topics_to_string(topic* head, char* buf);
 char* wb_to_string(whiteboard* w);
 
-char* here_all_comments_to_string(comment* head, char* buf);
+char* here_all_comments_to_string(topic* t, comment* head, char* buf, int* done);
 char* tp_to_string(topic* t);
 
-void print_replies(comment* r);
-
+char* child_to_string(topic* t, comment* child, char* buf, int* done, int level);
+char* cm_to_string(topic* t, comment* head, char* buf, int* done);
 
 
 
@@ -170,3 +179,9 @@ char* Register(int shmidwb, int socket_desc);
 
 // string management
 char* replace_char(char* str, char find, char replace);
+
+
+//utils
+int int_in_arr(int* arr, int i);
+int* add_to_arr(int* arr, int i);
+
