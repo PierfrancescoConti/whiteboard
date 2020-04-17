@@ -51,6 +51,7 @@ void app_loop(int shmidwb, int socket_desc, char* current_user){
         // printf("num: %d\n", number);
         whiteboard* w = (whiteboard*) shmat(shmidwb, NULL, 0);
         w->topicshead = (topic*) shmat(w->shmidto, NULL, 0);
+        w->usershead = (user*) shmat(w->shmidus, NULL, 0);
 
         topic* t=get_topic(w,number);
         
@@ -59,16 +60,22 @@ void app_loop(int shmidwb, int socket_desc, char* current_user){
         else{
           t->commentshead = (comment*) shmat(t->shmidcm, NULL, 0);
           current_tp_id=t->id;    // important!
-          strcpy(resp, tp_to_string(t));
+          if(int_in_arr(t->subscribers,get_user_by_usname(w,current_user)->id)) {
+            strcpy(resp, tp_to_string(t,1));
+            add_to_arr(t->viewers,get_user_by_usname(w,current_user)->id);
+            print_arr(t->viewers);  //DEBUG
+          }
+          else strcpy(resp, tp_to_string(t,0));
           strcat(resp, "\0");
           shmdt(t->commentshead); 
         }
       
         
+        shmdt(w->usershead);
         shmdt(w->topicshead);
         shmdt(w);
       }
-      printf("current_tp_id: %d\n",current_tp_id);
+      printf("current_tp_id: %d\n",current_tp_id);    //DEBUG
       
 
     } 
@@ -132,6 +139,9 @@ void app_loop(int shmidwb, int socket_desc, char* current_user){
             comment* c=new_comment(last->id+1, current_user, date, content, number);
             push_comment(t,c);
             add_reply(r,c->id);
+            memset(t->viewers, -1, MAX_REPLIES*sizeof(int));    //clear viewers
+            print_arr(t->viewers);  //DEBUG
+
 
             //printf("RID: %d\n", c->in_reply_to);
 
@@ -142,7 +152,7 @@ void app_loop(int shmidwb, int socket_desc, char* current_user){
 
             free(content);
 
-            strcpy(resp, "\033[42;1m   Comment added successfully!                                                                                 \033[0m\0");
+            strcpy(resp, "\033[42;1m   Comment added successfully!                                                                          \033[0m\0");
           }
           else{
             strcpy(resp, "\033[41;1m   Invalid comment                                                                                      \033[0m\0");
@@ -219,6 +229,8 @@ void app_loop(int shmidwb, int socket_desc, char* current_user){
         comment* last=get_last_comment(t);
         comment* c=new_comment(last->id+1, current_user, date, content,-1);
         push_comment(t,c);
+        memset(t->viewers, -1, MAX_REPLIES*sizeof(int));    //clear viewers
+        print_arr(t->viewers);  //DEBUG
 
         shmdt(t->commentshead);
         shmdt(w->topicshead);
@@ -227,7 +239,7 @@ void app_loop(int shmidwb, int socket_desc, char* current_user){
 
         free(content);
 
-        strcpy(resp, "\033[42;1m   Comment added successfully!                                                                                 \033[0m\0");
+        strcpy(resp, "\033[42;1m   Comment added successfully!                                                                          \033[0m\0");
       }
       else{
         strcpy(resp, "\033[41;1m   At first you have to choose a topic.      (usage: topic [topic#])                                    \033[0m\0");

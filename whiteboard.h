@@ -40,6 +40,15 @@ https://stackoverflow.com/questions/16655563/pointers-and-linked-list-with-share
 //      - edit each function to interact with shared memories - which shmid should each field have? which size?
 //      - free malloc after adding.
 //      - test.c (automated client that does things)
+//      - userAdmin.c (external users' administrator)
+
+//      - topic's viewers (lista di subscribers che hanno letto i commenti - riazzerarla ad ogni nuovo commento)
+//
+//      - subscribers pool (tabella utente|lista di topic a cui è sottoscritto)
+//        implementazione subscribers_pool: struct con campi *userid* e *lista_topics_id_subscribed* (e magari anche *next*)
+//
+//      - notifica per ogni topic nella pool in cui il current_user non è contenuto in viewers
+//      - se il post è mio, sono automaticamente un subscriber (e un viewer)
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
@@ -74,6 +83,7 @@ typedef struct tp{
   char title[256];
   char content[1024];
   int subscribers[MAX_SUBSCRIBERS];
+  int viewers[MAX_SUBSCRIBERS];
   struct tp* next;
 } topic;
 
@@ -88,7 +98,6 @@ typedef struct wbadmin{
 
 ///////////////// FUNCTIONS /////////////////
 // TODO: semaphores in main for each function or before&after shmat&shmdt
-// TODO: subscribers_pool (lista di topic aggiornati ordinata per userid) -> struct con campi *userid* e *lista_topics_id_subscribed* (e magari anche *next*)
 
 
 // creation     //for each creation, I have to define it's shmat first and shmdt then
@@ -161,8 +170,8 @@ void print_arr(int* arr);
 char* here_all_topics_to_string(topic* head, char* buf);
 char* wb_to_string(whiteboard* w);
 
-char* here_all_comments_to_string(topic* t, comment* head, char* buf, int* done);
-char* tp_to_string(topic* t);
+char* here_all_comments_to_string(topic* t, comment* head, char* buf, int* done, int subscribed);
+char* tp_to_string(topic* t, int subscribed);
 
 char* child_to_string(topic* t, comment* child, char* buf, int* done, int level);
 char* cm_to_string(topic* t, comment* head, char* buf, int* done);

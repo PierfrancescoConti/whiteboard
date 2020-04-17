@@ -68,6 +68,7 @@ topic* new_topic(int id, char* author, char* title, char* content, time_t timest
   shmdt(t->commentshead);
   t->next=NULL;
   memset(t->subscribers, -1, MAX_REPLIES*sizeof(int));
+  memset(t->viewers, -1, MAX_REPLIES*sizeof(int));
   return t;
 }
 
@@ -370,27 +371,33 @@ char* wb_to_string(whiteboard* w){
 }
 
 
-char* here_all_comments_to_string(topic* t, comment* head, char* buf, int* done){
-
+char* here_all_comments_to_string(topic* t, comment* head, char* buf, int* done, int subscribed){
+  if(subscribed==0){
+    printf("subscribed==0\n");
+    strcat(buf,"\033[41;1m   Wait! To see comments, you must subscribe to this topic! (usage: subscribe)                          \033[0m");
+    return buf;
+  }
   buf=cm_to_string(t, head, buf, done);
   // add status? 
   if(head->next==NULL){
     return buf;
   }
-  return here_all_comments_to_string(t,head->next, buf, done);
+  return here_all_comments_to_string(t,head->next, buf, done, subscribed);
 }
 
-char* tp_to_string(topic* t){
+char* tp_to_string(topic* t, int subscribed){
   char buf[32768];
   strcpy(buf, "Here is the chosen topic with all his comments:\n\n");
   int len=strlen(buf);
   len+=sprintf (buf+len, "%d. ",t->id);
   len+=sprintf(buf+len,"%s\n", t->title);
   len+=sprintf(buf+len,"    by %s\n\n", t->author);
+
   int done[MAX_COMMENTS];
   memset(done, -1, MAX_COMMENTS*sizeof(int));
 
-  return here_all_comments_to_string(t,t->commentshead, buf, done);
+  return here_all_comments_to_string(t,t->commentshead, buf, done, subscribed);
+
 }
 
 
