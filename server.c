@@ -19,8 +19,59 @@ int get_digit(char* buf, int i){    // i is the num's starting index
   return number;
 }
 
+void notify(int shmidwb, int socket_desc, char* current_user){
+  int ret, recv_bytes;
+  char* buf=(char*)malloc(16*sizeof(char));
+  size_t buf_len = 16;
+  char* resp=(char*)malloc(1024*sizeof(char));
+  size_t resp_len = 1024;
+  recv(socket_desc, buf, buf_len, 0);
+  int* to_notify=(int*)malloc(sizeof(int)*MAX_TOPICS);
+  memset(to_notify, -1, MAX_TOPICS*sizeof(int));
+  
+
+  ////////////// notify //////////////
+  if (strncmp(buf, "notify",6) == 0) {
+    whiteboard* w = (whiteboard*) shmat(shmidwb, NULL, 0);
+    w->topicshead = (topic*) shmat(w->shmidto, NULL, 0);
+    w->usershead = (user*) shmat(w->shmidus, NULL, 0);
+
+    int cuid = get_user_by_usname(w,current_user)->id;
+
+    int* listid=get_list_from_pool(w, cuid);    //topics subscribed from current_user
+    int j, i=0;
+    for(j=0;j<MAX_TOPICS && listid[j]!=-1;j++){
+      topic* t=get_topic(w,listid[j]);
+      if(!int_in_arr(t->viewers,cuid)){
+        to_notify[i]=listid[j];
+        printf("%d, ",to_notify[i]);
+        i++;
+      }
+    }
+    if(to_notify[0]!=-1){
+      
+      strcpy(resp,"Some of the topics you follow are updated! These are:");
+      int len=strlen(resp);
+      for(j=0;j<MAX_TOPICS && to_notify[j]!=-1;j++){
+        len+=sprintf (resp+len, " %d,",to_notify[j]);
+      }
+      resp[strlen(resp)-1]='\0';
+
+    }
+    else strcpy(resp,"No topics are updated!\0");
+
+    free(to_notify);
+    shmdt(w->usershead);
+    shmdt(w->topicshead);
+    shmdt(w);
+  }
+
+  send(socket_desc, resp,strlen(resp),0);
+}
+
 
 void app_loop(int shmidwb, int socket_desc, char* current_user){
+  notify(shmidwb, socket_desc, current_user);
   int ret, recv_bytes;
   int current_tp_id=-1;
   char* buf=(char*)malloc(1024*sizeof(char));
@@ -42,7 +93,6 @@ void app_loop(int shmidwb, int socket_desc, char* current_user){
 
     ////////// choose topic //////////
     if (strncmp(buf, "topic ",6) == 0) {
-      char d='a';
       int number=get_digit(buf, 6);
       if(number==-1){
         strcpy(resp, "\033[41;1m   Invalid topic                                                                                        \033[0m\0");
@@ -62,10 +112,11 @@ void app_loop(int shmidwb, int socket_desc, char* current_user){
           int cuid=get_user_by_usname(w,current_user)->id;
           current_tp_id=t->id;    // important!
           if(int_in_arr(t->subscribers,cuid)) {
-            strcpy(resp, tp_to_string(t,1));
+
             add_viewer(t,cuid);
             add_all_seen(t->commentshead,cuid);
             check_all_seen_by_all(t->subscribers, t->commentshead);
+            strcpy(resp, tp_to_string(t,1));
 
             //print_arr(t->viewers);  //DEBUG
           }
@@ -104,12 +155,52 @@ void app_loop(int shmidwb, int socket_desc, char* current_user){
     } 
     ////////// status comment //////////
     else if (strncmp(buf, "status ",7) == 0) {
-      // do something
+      int number=get_digit(buf, 7);
+      if(number==-1){
+        strcpy(resp, "\033[41;1m   Invalid comment                                                                                      \033[0m\0");
+      }
+      else{
+        whiteboard* w = (whiteboard*) shmat(shmidwb, NULL, 0);
+        w->topicshead = (topic*) shmat(w->shmidto, NULL, 0);
+        w->usershead = (user*) shmat(w->shmidus, NULL, 0);
+
+        if(current_tp_id==-1){
+          strcpy(resp, "\033[41;1m   At first you have to choose a topic.      (usage: topic [topic#])                                    \033[0m\0");
+        }
+        else{
+          topic* t=get_topic(w,current_tp_id);
+          int cuid= get_user_by_usname(w, current_user)->id;
+
+          if(!int_in_arr(t->subscribers, cuid)){
+            strcpy(resp, "\033[41;1m   You should subscribe first.      (usage: subscribe)                                                   \033[0m\0");
+          }   // TODO: check spaces
+          else{
+            t->commentshead = (comment*) shmat(t->shmidcm, NULL, 0);
+
+            comment* c = get_comment(t, number);
+            if(c==NULL){
+              strcpy(resp, "\033[41;1m   Invalid comment                                                                                      \033[0m\0");
+
+            }
+            else{
+              if(strcmp(c->status,"KK\0")) strcpy(resp,"Published and seen by all subscribers.\0");
+              else if(strcmp(c->status,"K\0")) strcpy(resp,"Published, but not seen by all subscribers.\0");
+            }
+             shmdt(t->commentshead);
+          }
+
+        }
+        
+        
+        shmdt(w->usershead);
+        shmdt(w->topicshead);
+        shmdt(w);
+      }
     } 
     ////////// reply to comment //////////
     else if (strncmp(buf, "reply ",6) == 0) {
       if(current_tp_id!=-1){
-        //printf("aaa\n");
+        //printf("aaa\n");      // DEBUG
 
         char d='a';
         int number=get_digit(buf, 6);
@@ -275,17 +366,29 @@ void app_loop(int shmidwb, int socket_desc, char* current_user){
         //if(u==NULL) printf("NULL\n");     //DEBUG
         //printf("us: %s\n",u->username);     //DEBUG
         topic* t=get_topic(w, current_tp_id);
+        t->commentshead = (comment*) shmat(t->shmidcm, NULL, 0);
+
         //printf("us: %s  -  tp:%d\n",u->username,t->id);     //DEBUG
         //CHECK if already subscribed
+        int cuid= get_user_by_usname(w, current_user)->id;
+
         add_subscriber(t,u->id);
         add_subscription_entry(w,u->id,t->id);
+        add_viewer(t,u->id);
+        add_all_seen(t->commentshead,u->id);
+        check_all_seen_by_all(t->subscribers, t->commentshead);
         //printf("Subscribers:\n");     //DEBUG
         //printf("%d-%d\n",t->subscribers[0],t->subscribers[1]);     //DEBUG
 
+        
+        strcpy(resp, "\033[42;1m   Subscribed.                                                                                          \033[0m\n\n");
+        strcat(resp, tp_to_string(t,1));
+        strcat(resp, "\0");
+
+        shmdt(t->commentshead);
         shmdt(w->usershead);
         shmdt(w->topicshead);
         shmdt(w);
-        strcpy(resp, "\033[42;1m   Subscribed.                                                                                          \033[0m\0");
       }
       else strcpy(resp, "\033[41;1m   At first you have to choose a topic.      (usage: topic [topic#])                                    \033[0m\0");
     } 

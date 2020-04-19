@@ -342,6 +342,14 @@ comment* get_last_comment(topic* t){
   return get_last_c(t->commentshead);
 }
 
+int* find_list_from_pool(subscribers_pool* head, int uid){
+  if(head->userid==uid) return head->list_subid;
+  return find_list_from_pool(head->next, uid);
+}
+
+int* get_list_from_pool(whiteboard* w, int uid){
+  return find_list_from_pool(w->pool, uid);
+}
 
 
 
@@ -495,7 +503,8 @@ char* child_to_string(topic* t, comment* child, char* buf, int* done, int level)
     len+=sprintf (buf+len, "\t|");   //adds tabs
   }
 
-  len+=sprintf(buf+len,"\t    by %s\n\n", child->author);
+  len+=sprintf(buf+len,"\t    by %s", child->author);
+  len+=sprintf(buf+len,"\t\033[1;34m%s\033[0m\n\n", child->status);
   // add status? 
   // for child_to_string();
   done = add_to_arr(done, child->id,MAX_COMMENTS);
@@ -514,7 +523,8 @@ char* cm_to_string(topic* t, comment* head, char* buf, int* done){
   int len=strlen(buf);
   len+=sprintf (buf+len, "\t%d. ",head->id);
   len+=sprintf(buf+len,"%s\n", head->comm);
-  len+=sprintf(buf+len,"\t    by %s\n\n", head->author);
+  len+=sprintf(buf+len,"\t    by %s", head->author);
+  len+=sprintf(buf+len,"\t\033[1;34m%s\033[0m\n\n", head->status);
   // add status? 
   // for child_to_string();
   //print_arr(done);    //DEBUG

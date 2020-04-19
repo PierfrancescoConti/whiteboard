@@ -74,15 +74,21 @@ void client_loop(int socket_desc){
     size_t buf_len = 32768;
 
     char choice[32];
-    //help//
+//TODO: non funge
+    strcpy(choice,"notify\0");
+    send(socket_desc, choice,strlen(choice),0);
+    recv(socket_desc, buf, buf_len, 0);
     print_logo();
+    printf("%s\n", buf);
+
+    memset(buf, 0, buf_len);          // FLUSH
+    memset(choice, 0, 32);          // FLUSH
     
     printf("\n> help\n");
     strcpy(choice,"help\0");
     send(socket_desc, choice,strlen(choice),0);
     recv(socket_desc, buf, buf_len, 0);
 
-    print_logo();
     print_menu();
 
 

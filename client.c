@@ -71,7 +71,11 @@ void client_loop(int socket_desc){
     size_t buf_len = 32768;
 
     char choice[32];
+    strcpy(choice,"notify\0");
+    send(socket_desc, choice,strlen(choice),0);
+    recv(socket_desc, buf, buf_len, 0);
     print_logo();
+    printf("%s\n", buf);
  
     while(1){
         do{

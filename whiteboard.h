@@ -28,10 +28,6 @@
 #define TOPICS_KEY 20000
 
 
-///////////////////////////////// SHARED MEMORY LINKED LIST /////////////////////////////////
-/*
-https://stackoverflow.com/questions/16655563/pointers-and-linked-list-with-shared-memory
-*/
 
 // COMMENT'S STATUS:
 //    - O: Sent (initial state)
@@ -47,7 +43,8 @@ https://stackoverflow.com/questions/16655563/pointers-and-linked-list-with-share
 //      - userAdmin.c (external users' administrator)
 //      - do IPC semaphores in main for each function or before&after shmat&shmdt
 
-
+//      - DONE: a subscribe, dopo stampa il topic a cui si è sottoscritto
+//      - DONE: notifica per ogni topic nella pool in cui il current_user non è contenuto in viewers
 //      - DONE: topic's viewers (lista di subscribers che hanno letto i commenti - riazzerarla ad ogni nuovo commento)
 //
 //      - DONE: subscribers pool (tabella utente|lista di topic a cui è sottoscritto)
@@ -56,8 +53,7 @@ https://stackoverflow.com/questions/16655563/pointers-and-linked-list-with-share
 //      - DONE: seen: altra lista di interi per ogni commento degli utenti che lo hanno visualizzato 
 //            (usando choose topic dopo essersi sottoscritti) al fine di dare un senso allo status del commento
 //      - DONE?? -> bisogna vedere con diversi utenti: during subscription CHECK if already subscribed
-//      - notifica per ogni topic nella pool in cui il current_user non è contenuto in viewers
-//      - se il post è mio, sono automaticamente un subscriber (e un viewer)
+//      - DONE: se il post è mio, sono automaticamente un subscriber (e un viewer)
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
@@ -172,6 +168,9 @@ comment* get_comment(topic* t, int id_comment);
 
 comment* get_last_c(comment* head);
 comment* get_last_comment(topic* t);
+
+int* find_list_from_pool(subscribers_pool* head, int uid);
+int* get_list_from_pool(whiteboard* w, int uid);
 
 
 // printers
