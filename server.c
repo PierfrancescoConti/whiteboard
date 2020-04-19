@@ -59,11 +59,15 @@ void app_loop(int shmidwb, int socket_desc, char* current_user){
         if(t==NULL) strcpy(resp, "\033[41;1m   Invalid topic                                                                                        \033[0m\0");
         else{
           t->commentshead = (comment*) shmat(t->shmidcm, NULL, 0);
+          int cuid=get_user_by_usname(w,current_user)->id;
           current_tp_id=t->id;    // important!
-          if(int_in_arr(t->subscribers,get_user_by_usname(w,current_user)->id)) {
+          if(int_in_arr(t->subscribers,cuid)) {
             strcpy(resp, tp_to_string(t,1));
-            add_to_arr(t->viewers,get_user_by_usname(w,current_user)->id);
-            print_arr(t->viewers);  //DEBUG
+            add_viewer(t,cuid);
+            add_all_seen(t->commentshead,cuid);
+            check_all_seen_by_all(t->subscribers, t->commentshead);
+
+            //print_arr(t->viewers);  //DEBUG
           }
           else strcpy(resp, tp_to_string(t,0));
           strcat(resp, "\0");
@@ -188,13 +192,23 @@ void app_loop(int shmidwb, int socket_desc, char* current_user){
 
       whiteboard* w = (whiteboard*) shmat(shmidwb, NULL, 0);
       w->topicshead = (topic*) shmat(w->shmidto, NULL, 0);
+      w->usershead = (user*) shmat(w->shmidus, NULL, 0);
 
       time_t date;
       time(&date);
       topic* last=get_last_topic(w);
       topic* t=new_topic(last->id+1, current_user, title, content, date);
+
+      int cuid= get_user_by_usname(w, current_user)->id;
+
+      add_subscriber(t,cuid);
+      add_subscription_entry(w,cuid,t->id);
+      add_viewer(t,cuid);
+
+
       add_topic(w, t);
 
+      shmdt(w->usershead);
       shmdt(w->topicshead);
       shmdt(w);
 
@@ -202,7 +216,7 @@ void app_loop(int shmidwb, int socket_desc, char* current_user){
       free(content);
       free(title);
 
-      strcpy(resp, "\033[42;1m   Topic created successfully!                                                                                 \033[0m");
+      strcpy(resp, "\033[42;1m   Topic created successfully!                                                                          \033[0m");
       strcat(resp, "\0");
 
     } 
@@ -262,7 +276,9 @@ void app_loop(int shmidwb, int socket_desc, char* current_user){
         //printf("us: %s\n",u->username);     //DEBUG
         topic* t=get_topic(w, current_tp_id);
         //printf("us: %s  -  tp:%d\n",u->username,t->id);     //DEBUG
+        //CHECK if already subscribed
         add_subscriber(t,u->id);
+        add_subscription_entry(w,u->id,t->id);
         //printf("Subscribers:\n");     //DEBUG
         //printf("%d-%d\n",t->subscribers[0],t->subscribers[1]);     //DEBUG
 

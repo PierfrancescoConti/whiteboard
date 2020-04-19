@@ -23,6 +23,10 @@ whiteboard* create_wb(whiteboard* w){
   w->usershead=(user*) shmat(w->shmidus, NULL, 0);
   *(w->usershead)=*(new_user(0, "admin\n", "admin\n"));
   shmdt(w->usershead);
+  w->pool->userid=0;
+  memset(w->pool->list_subid, -1, MAX_SUBSCRIBERS*sizeof(int));
+  w->pool->list_subid[0]=0;
+  w->pool->next=NULL;
   return w;
 }
 
@@ -30,6 +34,7 @@ comment* new_comment(int id, char* author, time_t timestamp, char* comm, int rep
   comment* c = (comment*) malloc(sizeof(comment));
   c->id=id;
   c->timestamp=timestamp;
+  strcpy(c->status, "O\0");   //Sent
 
   strncpy(c->author, author, 32);
   c->author[strlen(c->author)-1]='\0';  // stringa troncata se troppo lunga
@@ -41,6 +46,7 @@ comment* new_comment(int id, char* author, time_t timestamp, char* comm, int rep
   c->in_reply_to=reply_id;
 
   memset(c->replies, -1, MAX_REPLIES*sizeof(int));
+  memset(c->seen, -1, MAX_SUBSCRIBERS*sizeof(int));
   return c;
 }
 
@@ -86,6 +92,13 @@ user* new_user(int id, char* username, char* password){
   return u;
 }
 
+subscribers_pool* new_entry_pool(int uid){
+  subscribers_pool* p = malloc(sizeof(subscribers_pool));
+  p->userid=uid;
+  memset(p->list_subid, -1, MAX_SUBSCRIBERS*sizeof(int));
+  return p;
+}
+
 
 
 
@@ -115,15 +128,19 @@ void append_user(user* head, user* u){
 }
 
 void add_user(whiteboard* w, user* u){
+  add_user_to_pool(w, u->id);
+  print_pool(w);
   append_user(w->usershead, u);
   return;
 }
 
 void append_comment(comment* head, comment* c){
   if(head->next==NULL){
+    strcpy(c->status,"K\0");
     *(head+1)=*c;
     // free(c);
     head->next=head+1;
+
   }
   else return append_comment(head->next, c);
 }
@@ -133,6 +150,7 @@ void push_comment(topic* t, comment* c){
 }
 
 void add_subscriber(topic* t, int userid){
+  if(int_in_arr(t->subscribers,userid)) return;
   int i;
   for(i=0;i<MAX_SUBSCRIBERS;i++){
     if(t->subscribers[i]==-1){
@@ -142,16 +160,64 @@ void add_subscriber(topic* t, int userid){
   }
 }
 
+void add_viewer(topic* t,int uid){
+  if(int_in_arr(t->viewers,uid)) return;
+  add_to_arr(t->viewers,uid,MAX_SUBSCRIBERS);
+  
+  //print_seen(c);      //DEBUG
+}
 
 void add_reply(comment* r,int id_comm){
+  if(int_in_arr(r->replies,id_comm)) return;
+  add_to_arr(r->replies,id_comm,MAX_REPLIES);
+
+  //print_replies(r);      //DEBUG
+}
+
+void add_seen(comment* c,int uid){
+  if(int_in_arr(c->seen,uid)) return;
+  add_to_arr(c->seen,uid,MAX_SUBSCRIBERS);
+  
+  //print_seen(c);      //DEBUG
+}
+
+void add_all_seen(comment* head,int uid){
+  if(!int_in_arr(head->seen,uid)) add_seen(head,uid);
+  if(head->next==NULL){
+    return;
+  }
+  add_all_seen(head->next, uid);
+}
+
+
+void add_user_to_pool(whiteboard* w, int uid){
   int i;
-  for(i=0;i<MAX_REPLIES;i++){
-    if(r->replies[i]==-1){
-      r->replies[i]=id_comm;
-      break;
+  for(i=0;i<MAX_USERS;i++){
+    if((w->pool+i)->next==NULL){
+      subscribers_pool *p=new_entry_pool(uid);
+      *(w->pool+i+1)=*p;
+      (w->pool+i)->next=w->pool+i+1;
+      //free(p)?
     }
   }
-  //print_replies(r);
+}
+
+void add_subscription_entry(whiteboard* w, int uid, int tid){
+  int i;
+  for(i=0;i<MAX_USERS;i++){
+    if((w->pool+i)->userid==uid){
+      if(int_in_arr((w->pool+i)->list_subid,tid)) return;
+      int j;
+      for(j=0;j<MAX_SUBSCRIBERS;j++){
+        if((w->pool+i)->list_subid[j]==-1){
+          (w->pool+i)->list_subid[j]=tid;
+          printf("SUCCESS\n");      //DEBUG
+          //print_pool(w);      //DEBUG
+          return;
+        }
+      }
+    }
+  }
 }
 
 
@@ -348,6 +414,20 @@ void print_arr(int* arr){
   printf("\n");
 }
 
+void print_pool(whiteboard* w){
+  int i,j;
+  for(i=0;i<MAX_USERS;i++){
+    printf("Utente: %d\n", (w->pool+i)->userid);
+    printf("Topics:");
+    for(j=0;j<MAX_SUBSCRIBERS && (w->pool+i)->list_subid[j]!=-1;j++){
+      printf(" %d", (w->pool+i)->list_subid[j]);
+    }
+    if((w->pool+i)->next==NULL){
+      break;
+    }
+  }
+}
+
 
 
 
@@ -418,7 +498,7 @@ char* child_to_string(topic* t, comment* child, char* buf, int* done, int level)
   len+=sprintf(buf+len,"\t    by %s\n\n", child->author);
   // add status? 
   // for child_to_string();
-  done = add_to_arr(done, child->id);
+  done = add_to_arr(done, child->id,MAX_COMMENTS);
 
   for(i=0;i<MAX_REPLIES && child->replies[i]!=-1;i++){
     child_to_string(t, get_comment(t,child->replies[i]), buf, done, level+1);
@@ -438,7 +518,7 @@ char* cm_to_string(topic* t, comment* head, char* buf, int* done){
   // add status? 
   // for child_to_string();
   //print_arr(done);    //DEBUG
-  done = add_to_arr(done, head->id);
+  done = add_to_arr(done, head->id,MAX_COMMENTS);
   //print_arr(done);    //DEBUG
 
 
@@ -601,9 +681,9 @@ int int_in_arr(int* arr, int i){
   return 0;
 }
 
-int* add_to_arr(int* arr, int i){
+int* add_to_arr(int* arr, int i, int max_size){
   int j;
-  for(j=0;;j++){
+  for(j=0;j<max_size;j++){
     if(arr[j]==-1){
       arr[j]=i;
       
@@ -612,6 +692,42 @@ int* add_to_arr(int* arr, int i){
   }
   return arr;
 }
+
+
+
+
+
+// checks
+int check_seen_by_all(int* subscribers, int* seen){
+  int i;
+  for(i=0;i<MAX_SUBSCRIBERS;i++){
+    if(subscribers[i]==-1) break;
+    if(!int_in_arr(seen, subscribers[i])){
+      return 0;
+    }
+  }
+  return 1;
+}
+
+
+void check_all_seen_by_all(int* subscribers, comment* head){
+  if(check_seen_by_all(subscribers, head->seen)){
+    strcpy(head->status,"KK\0");
+  }
+  else return;
+  if(head->next==NULL){
+    return;
+  }
+  check_all_seen_by_all(subscribers, head->next);
+}
+
+
+
+
+
+
+
+
 
 
 

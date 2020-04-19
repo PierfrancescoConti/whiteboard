@@ -1,12 +1,14 @@
 CC = gcc -Wall -g
 
-all: clean client server
+all: clean client server test
 
+
+test:
+	$(CC) -o test test.c global.h -Wno-unused-variable
 
 
 client:
 	$(CC) -o client client.c global.h -Wno-unused-variable
-
 
 
 server:

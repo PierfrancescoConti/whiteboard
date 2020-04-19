@@ -33,20 +33,29 @@
 https://stackoverflow.com/questions/16655563/pointers-and-linked-list-with-shared-memory
 */
 
+// COMMENT'S STATUS:
+//    - O: Sent (initial state)
+//    - K: Published
+//    - KK: Seen by all subscribers
 
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // TODO:
 //      - edit each function to interact with shared memories - which shmid should each field have? which size?
 //      - free malloc after adding.
-//      - test.c (automated client that does things)
+//      - test.c (automated client that does things) -> at the end do more things and user_test name random (e.g. user_test75583)
 //      - userAdmin.c (external users' administrator)
+//      - do IPC semaphores in main for each function or before&after shmat&shmdt
 
-//      - topic's viewers (lista di subscribers che hanno letto i commenti - riazzerarla ad ogni nuovo commento)
+
+//      - DONE: topic's viewers (lista di subscribers che hanno letto i commenti - riazzerarla ad ogni nuovo commento)
 //
-//      - subscribers pool (tabella utente|lista di topic a cui è sottoscritto)
-//        implementazione subscribers_pool: struct con campi *userid* e *lista_topics_id_subscribed* (e magari anche *next*)
+//      - DONE: subscribers pool (tabella utente|lista di topic a cui è sottoscritto)
+//                implementazione subscribers_pool: struct con campi *userid* e *lista_topics_id_subscribed* (e magari anche *next*)
 //
+//      - DONE: seen: altra lista di interi per ogni commento degli utenti che lo hanno visualizzato 
+//            (usando choose topic dopo essersi sottoscritti) al fine di dare un senso allo status del commento
+//      - DONE?? -> bisogna vedere con diversi utenti: during subscription CHECK if already subscribed
 //      - notifica per ogni topic nella pool in cui il current_user non è contenuto in viewers
 //      - se il post è mio, sono automaticamente un subscriber (e un viewer)
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -56,14 +65,22 @@ https://stackoverflow.com/questions/16655563/pointers-and-linked-list-with-share
 
 ///////////////// STRUCTURES /////////////////
 
+typedef struct sp{
+  int userid;
+  int list_subid[MAX_REPLIES];
+  struct sp* next;
+} subscribers_pool;
+
+
 typedef struct cm{
   int id;
   int in_reply_to;    // -1 if none
   int replies[MAX_REPLIES];
+  int seen[MAX_SUBSCRIBERS];
   time_t timestamp;
+  char status[4];
   char author[32];
   char comm[1024];
-  //status
   struct cm* next;
 } comment;
 
@@ -92,12 +109,12 @@ typedef struct wbadmin{
   int shmidus;
   topic* topicshead;
   user* usershead;
+  subscribers_pool pool[MAX_USERS];
 } whiteboard;
 
 
 
 ///////////////// FUNCTIONS /////////////////
-// TODO: semaphores in main for each function or before&after shmat&shmdt
 
 
 // creation     //for each creation, I have to define it's shmat first and shmdt then
@@ -105,6 +122,7 @@ whiteboard* create_wb(whiteboard* w);
 comment* new_comment(int id, char* author, time_t timestamp, char* comment, int reply_id);
 topic* new_topic(int id, char* author, char* title, char* content, time_t timestamp);
 user* new_user(int id, char* username, char* password);
+subscribers_pool* new_entry_pool(int uid);
 
 // addition   //for each addition, I have to define it's shmat first and shmdt then
 void append_topic(topic* head, topic* t);     // appends a topic to a linked list of topics
@@ -117,7 +135,13 @@ void append_comment(comment* head, comment* c);
 void push_comment(topic* t, comment* c);    // whiteboard modified? -> update_topic
 
 void add_subscriber(topic* t, int userid);
+void add_viewer(topic* t,int uid);
 void add_reply(comment* r,int id_comm);
+void add_seen(comment* c,int uid);
+void add_all_seen(comment* head,int uid);
+void add_user_to_pool(whiteboard* w, int uid);
+void add_subscription_entry(whiteboard* w, int uid, int tid);
+
 
 // deletion
 void del_tp(topic* head, int id_tp);
@@ -162,6 +186,7 @@ void print_users(whiteboard* w);  //DEBUG
 
 void print_replies(comment* r);
 void print_arr(int* arr);
+void print_pool(whiteboard* w);
 
 
 
@@ -192,5 +217,10 @@ char* replace_char(char* str, char find, char replace);
 
 //utils
 int int_in_arr(int* arr, int i);
-int* add_to_arr(int* arr, int i);
+int* add_to_arr(int* arr, int i, int max_size);
 
+
+
+// checks
+int check_seen_by_all(int* subscribers, int* seen);   //can be generalized: check A subset of B
+void check_all_seen_by_all(int* subscribers, comment* head);
