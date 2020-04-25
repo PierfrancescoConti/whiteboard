@@ -50,21 +50,25 @@ void notify(int shmidwb, int socket_desc, char* current_user){
     }
     if(to_notify[0]!=-1){
       
-      strcpy(resp,"Some of the topics you follow are updated! These are:");
+      strcpy(resp,"\033[103;1m\033[30;1m   Some of the topics you follow are updated! These are:");
       int len=strlen(resp);
       for(j=0;j<MAX_TOPICS && to_notify[j]!=-1;j++){
         len+=sprintf (resp+len, " %d,",to_notify[j]);
       }
-      resp[strlen(resp)-1]='\0';
+      resp[strlen(resp)-1]=' ';
+        strcat(resp,"        \033[0m\n\n\0");
+      
 
     }
-    else strcpy(resp,"No topics are updated!\0");
+    else strcpy(resp,"\033[42;1m   No topics are updated!                                                                               \033[0m\n\n\0");
+
 
     free(to_notify);
     shmdt(w->usershead);
     shmdt(w->topicshead);
     shmdt(w);
   }
+  //printf("SENDING: %s\n",resp);   //DEBUG
 
   send(socket_desc, resp,strlen(resp),0);
 }
@@ -72,6 +76,7 @@ void notify(int shmidwb, int socket_desc, char* current_user){
 
 void app_loop(int shmidwb, int socket_desc, char* current_user){
   notify(shmidwb, socket_desc, current_user);
+  printf("%s\n",current_user);    //DEBUG
   int ret, recv_bytes;
   int current_tp_id=-1;
   char* buf=(char*)malloc(1024*sizeof(char));
@@ -148,10 +153,6 @@ void app_loop(int shmidwb, int socket_desc, char* current_user){
       shmdt(w->topicshead);
       shmdt(w);
       // printf("%s\n", resp);   //DEBUG
-    } 
-    ////////// get comment //////////
-    else if (strncmp(buf, "get ",4) == 0) {
-      // do something
     } 
     ////////// status comment //////////
     else if (strncmp(buf, "status ",7) == 0) {
@@ -459,7 +460,6 @@ void* connection_handler(int shmidwb, int socket_desc, struct sockaddr_in* clien
     // parse client IP address and port
     char client_ip[INET_ADDRSTRLEN];
     inet_ntop(AF_INET, &(client_addr->sin_addr), client_ip, INET_ADDRSTRLEN);
-/*
     // read message from client
     while((recv_bytes = recv(socket_desc, buf, buf_len, 0)) < 0 ) {
         if(errno == EINTR) continue;
@@ -478,10 +478,20 @@ void* connection_handler(int shmidwb, int socket_desc, struct sockaddr_in* clien
         if(resp!=NULL) break;
         // printf("Username already taken.\n");     //DEBUG
         send(socket_desc, "Username already taken.\0",32, 0);
+        // close socket
+        //printf("closing....\n");     // DEBUG
+	      ret = close(socket_desc);
+	      ERROR_HELPER(ret, "Cannot close socket for incoming connection");
+	      free(buf);
+        free(client_addr); // do not forget to free this buffer!
+        //detach from shared memory
+        //shmdt(w);
+        printf("all closed\n");     // DEBUG
+        exit(1);
       }
       //printf("out\n");     //DEBUG
-
-  		send(socket_desc, resp,11, 0);
+      strcpy(resp,"Registration Done.\0");
+  		send(socket_desc, resp,32, 0);
     }
 
 	///////////////////////////////AUTH///////////////////////////////
@@ -493,12 +503,11 @@ void* connection_handler(int shmidwb, int socket_desc, struct sockaddr_in* clien
         send(socket_desc, "Invalid credentials.\0",32, 0);
         free(buf);
         free(client_addr); // do not forget to free this buffer!
-        ret = close(socket_desc);
-      	ERROR_HELPER(ret, "Cannot close socket for incoming connection");
+        //ret = close(socket_desc);
+      	//ERROR_HELPER(ret, "Cannot close socket for incoming connection");
         //detach from shared memory
         //shmdt(w);
         printf("all closed\n");     //DEBUG
-        connection_handler(shmidwb, socket_desc, client_addr);
         exit(1);
       }
       printf("Current_User: %s\n", current_user);     //DEBUG
@@ -506,14 +515,13 @@ void* connection_handler(int shmidwb, int socket_desc, struct sockaddr_in* clien
 
       char* resp = current_user;
       replace_char(resp, '\n', '\0');
-      char end='\0';    //????
-      strncat(resp, &end, 1);
+      //char end='\0';    //????
+      //strncat(resp, &end, 1);
   		send(socket_desc, resp, 32, 0);
 
       app_loop(shmidwb, socket_desc, current_user);
 
     }
-    */app_loop(shmidwb, socket_desc, "admin\n");   // DEBUG: auth bypass (cancellare questa riga e decommentare)
 	// close socket
   //printf("closing....\n");     // DEBUG
 	ret = close(socket_desc);

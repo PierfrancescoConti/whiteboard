@@ -43,6 +43,9 @@
 //      - userAdmin.c (external users' administrator)
 //      - do IPC semaphores in main for each function or before&after shmat&shmdt
 
+//      - choose topic: fai leggere il contenuto, perchè non lo stampa
+
+
 //      - DONE: a subscribe, dopo stampa il topic a cui si è sottoscritto
 //      - DONE: notifica per ogni topic nella pool in cui il current_user non è contenuto in viewers
 //      - DONE: topic's viewers (lista di subscribers che hanno letto i commenti - riazzerarla ad ogni nuovo commento)
@@ -135,6 +138,7 @@ void add_viewer(topic* t,int uid);
 void add_reply(comment* r,int id_comm);
 void add_seen(comment* c,int uid);
 void add_all_seen(comment* head,int uid);
+void autp(subscribers_pool* head, int uid);
 void add_user_to_pool(whiteboard* w, int uid);
 void add_subscription_entry(whiteboard* w, int uid, int tid);
 

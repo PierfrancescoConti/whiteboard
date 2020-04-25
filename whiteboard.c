@@ -18,10 +18,10 @@ whiteboard* create_wb(whiteboard* w){
   w->topicshead=(topic*) shmat(w->shmidto, NULL, 0);
   time_t date;
   time(&date);
-  *(w->topicshead)=*(new_topic(0, "admin\n", "First topic.\n", "Hello, world! This is my firs topic.\n", date));
+  *(w->topicshead)=*(new_topic(0, "admin\0", "First topic.\n", "Hello, world! This is my firs topic.\n", date));
   shmdt(w->topicshead);
   w->usershead=(user*) shmat(w->shmidus, NULL, 0);
-  *(w->usershead)=*(new_user(0, "admin\n", "admin\n"));
+  *(w->usershead)=*(new_user(0, "admin\0", "admin\0"));
   shmdt(w->usershead);
   w->pool->userid=0;
   memset(w->pool->list_subid, -1, MAX_SUBSCRIBERS*sizeof(int));
@@ -37,10 +37,10 @@ comment* new_comment(int id, char* author, time_t timestamp, char* comm, int rep
   strcpy(c->status, "O\0");   //Sent
 
   strncpy(c->author, author, 32);
-  c->author[strlen(c->author)-1]='\0';  // stringa troncata se troppo lunga
+  //c->author[strlen(c->author)-1]='\0';  // stringa troncata se troppo lunga
 
   strncpy(c->comm, comm, 32);
-  c->comm[strlen(c->comm)-1]='\0';  // stringa troncata se troppo lunga
+  //c->comm[strlen(c->comm)-1]='\0';  // stringa troncata se troppo lunga
 
   c->next=NULL;
   c->in_reply_to=reply_id;
@@ -54,13 +54,13 @@ topic* new_topic(int id, char* author, char* title, char* content, time_t timest
   topic* t = (topic*) malloc(sizeof(topic));
   t->id=id;
   strncpy(t->author, author, 32);
-  t->author[strlen(t->author)-1]='\0';  // stringa troncata se troppo lunga
+  //t->author[strlen(t->author)-1]='\0';  // stringa troncata se troppo lunga
 
   strncpy(t->title, title, 256);
-  t->title[strlen(t->title)-1]='\0';  // stringa troncata se troppo lunga
+  //t->title[strlen(t->title)-1]='\0';  // stringa troncata se troppo lunga
 
   strncpy(t->content, content, 1024);
-  t->content[strlen(t->content)-1]='\0';  // stringa troncata se troppo lunga
+  //t->content[strlen(t->content)-1]='\0';  // stringa troncata se troppo lunga
 
   t->timestamp=timestamp;
   if ((t->shmidcm = shmget(30000+(t->id*MAX_COMMENTS), sizeof(comment)*MAX_COMMENTS, IPC_CREAT | 0666)) < 0) {
@@ -70,7 +70,7 @@ topic* new_topic(int id, char* author, char* title, char* content, time_t timest
   t->commentshead= (comment*)shmat(t->shmidcm, NULL, 0);  //manage comments with shared memory  //posso creare la key dello shmidcm con una operazione -> 30000+(t->id*MAX_COMMENTS)
   time_t date;
   time(&date);
-  *(t->commentshead)=*(new_comment(0, "admin\n", date, "Please, comment below.\n",-1));  //First comment per topic!
+  *(t->commentshead)=*(new_comment(0, "admin\0", date, "Please, comment below.\n",-1));  //First comment per topic!
   shmdt(t->commentshead);
   t->next=NULL;
   memset(t->subscribers, -1, MAX_REPLIES*sizeof(int));
@@ -82,20 +82,22 @@ user* new_user(int id, char* username, char* password){
   user* u = (user*) malloc(sizeof(user));
   u->id=id;
 
-  strncpy(u->username, username, 32);
-  u->username[strlen(u->username)]='\0';  // stringa troncata se troppo lunga
+  strncpy(u->username, username, 31);
+  //u->username[strlen(u->username)-1]='\0';  // stringa troncata se troppo lunga
 
-  strncpy(u->password, password, 32);
-  u->password[strlen(u->password)]='\0';  // stringa troncata se troppo lunga
+  strncpy(u->password, password, 31);
+  //u->password[strlen(u->password)-1]='\0';  // stringa troncata se troppo lunga
 
   u->next=NULL;
   return u;
 }
 
 subscribers_pool* new_entry_pool(int uid){
-  subscribers_pool* p = malloc(sizeof(subscribers_pool));
+  subscribers_pool* p = (subscribers_pool*)malloc(sizeof(subscribers_pool));
   p->userid=uid;
+  //printf("%d\n",p->userid);       //DEBUG
   memset(p->list_subid, -1, MAX_SUBSCRIBERS*sizeof(int));
+  p->next=NULL;
   return p;
 }
 
@@ -129,7 +131,7 @@ void append_user(user* head, user* u){
 
 void add_user(whiteboard* w, user* u){
   add_user_to_pool(w, u->id);
-  print_pool(w);
+  //print_pool(w);
   append_user(w->usershead, u);
   return;
 }
@@ -189,17 +191,26 @@ void add_all_seen(comment* head,int uid){
   add_all_seen(head->next, uid);
 }
 
+void autp(subscribers_pool* head, int uid){
+  if(uid>MAX_USERS){
+    printf("Too much users.\n");
+    return;
+  }
+  if(head->next==NULL){
+    subscribers_pool *p=new_entry_pool(uid);
+    *(head+1)=*p;
+    //printf("p->userid: %d\n",p->userid);     //DEBUG
+    head->next=head+1;
+    free(p);
+    return;
+  }
+  //printf("%d\n",head->userid);      //DEBUG
+  autp(head->next,uid);
+
+}
 
 void add_user_to_pool(whiteboard* w, int uid){
-  int i;
-  for(i=0;i<MAX_USERS;i++){
-    if((w->pool+i)->next==NULL){
-      subscribers_pool *p=new_entry_pool(uid);
-      *(w->pool+i+1)=*p;
-      (w->pool+i)->next=w->pool+i+1;
-      //free(p)?
-    }
-  }
+  autp(w->pool, uid);
 }
 
 void add_subscription_entry(whiteboard* w, int uid, int tid){
@@ -343,7 +354,12 @@ comment* get_last_comment(topic* t){
 }
 
 int* find_list_from_pool(subscribers_pool* head, int uid){
+  //printf("%d--%d\n",head->userid,uid);     //DEBUG
   if(head->userid==uid) return head->list_subid;
+  if(head->next==NULL){
+    printf("UTENTE NON TROVATO NELLA POOL\n");     //DEBUG
+    return NULL;
+  }
   return find_list_from_pool(head->next, uid);
 }
 
@@ -479,6 +495,7 @@ char* tp_to_string(topic* t, int subscribed){
   int len=strlen(buf);
   len+=sprintf (buf+len, "%d. ",t->id);
   len+=sprintf(buf+len,"%s\n", t->title);
+  len+=sprintf(buf+len,"%s\n", t->content);
   len+=sprintf(buf+len,"    by %s\n\n", t->author);
 
   int done[MAX_COMMENTS];
@@ -558,8 +575,8 @@ char* cm_to_string(topic* t, comment* head, char* buf, int* done){
 
 
 // authenticator
-int validate_user(whiteboard*w, char* us, char* pw){
-  printf("%s\n", us);     //DEBUG
+int validate_user(whiteboard* w, char* us, char* pw){
+  //printf("%s\n", us);     //DEBUG
   user* u=get_user_by_usname(w, us);
   if(u && !strcmp(u->password, pw)) return 0;
   return -1;
@@ -586,9 +603,9 @@ char* Auth(int shmidwb, int socket_desc){
   replace_char(password, '\n', '\0');
 
   int ret=validate_user(w, username, password);
-  print_users(w);     //DEBUG
+  //print_users(w);     //DEBUG
   if(ret==0){
-    printf("%s\n",username);     //DEBUG
+    //printf("%s\n",username);     //DEBUG
     shmdt(w->usershead);
     shmdt(w);
     printf("Authentication successful.\n");
@@ -614,7 +631,7 @@ char* Register(int shmidwb, int socket_desc){
   recv(socket_desc, username, b_len, 0);
   replace_char(username, '\n', '\0');
   char end='\0';    //????
-  strncat(username, &end, 1);
+  //strncat(username, &end, 1);
   if(!strcmp(username, "")){
     printf("You didn't insert anything.\n");
     return NULL;
@@ -623,29 +640,33 @@ char* Register(int shmidwb, int socket_desc){
 
   s="Password: \0";
   send(socket_desc, s, 13, 0);
-
   char* password=(char*)malloc(sizeof(char)*32);
   recv(socket_desc, password, b_len, 0);
   replace_char(password, '\n', '\0');
-  strncat(password, &end, 1);
+  //strncat(password, &end, 1);
   printf("Password: %s\n", password);
   // printf("lens: %d - %d\n", strlen(username) ,strlen(password));   // DEBUG
-
+  
 
   user* us=get_user_by_usname(w, username);
+  
   if(us==NULL){
     user* last=get_last_user(w);
     user* u;
-    print_users(w);     //DEBUG
+    //print_users(w);     //DEBUG
+
     if(last==NULL){
+      
       u=new_user(0, username, password);
     }
     else{
+
       u=new_user(last->id + 1, username, password);
+
     }
     add_user(w, u); // check return?
     printf("Registration done.\n");
-    print_users(w);     //DEBUG
+    //print_users(w);     //DEBUG
     free(username);
     free(password);
     shmdt(w->usershead);

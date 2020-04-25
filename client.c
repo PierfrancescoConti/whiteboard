@@ -54,8 +54,6 @@ void print_menu(){      //help
     printf("--------------------------------------------------------------------------------------------------------\n");
     printf("-> \033[1;34mreply [comment#]       \033[0m|-  You can write a comment as response to another comment.\n");
     printf("--------------------------------------------------------------------------------------------------------\n");
-    printf("-> \033[1;34mget [comment#]         \033[0m|-  It shows all the info about the comment you decide inside\n                          |   the current topic.\n");
-    printf("--------------------------------------------------------------------------------------------------------\n");
     printf("-> \033[1;34mstatus [comment#]      \033[0m|-  It shows the status of the comment you decide inside the current topic.\n");
     printf("--------------------------------------------------------------------------------------------------------\n");
     printf("-> \033[1;34mquit                   \033[0m|-  Well.... you quit.\n");
@@ -87,7 +85,7 @@ void client_loop(int socket_desc){
             }
             choice[strlen(choice)-1]='\0';
         }
-        while(!(strcmp(choice,"help")==0 || strncmp(choice,"topic ",6)==0 || strcmp(choice,"list topics")==0 || strncmp(choice, "get ",4)==0 || strncmp(choice, "status ",7)==0 || strcmp(choice, "create topic") == 0 || strncmp(choice, "reply ",6) == 0 || strncmp(choice, "delete topic ",13) == 0 || strncmp(choice, "delete comment ",15) == 0 || strcmp(choice, "subscribe") == 0 || strcmp(choice, "add comment") == 0 || strcmp(choice, "quit") == 0));
+        while(!(strcmp(choice,"help")==0 || strncmp(choice,"topic ",6)==0 || strcmp(choice,"list topics")==0 || strncmp(choice, "status ",7)==0 || strcmp(choice, "create topic") == 0 || strncmp(choice, "reply ",6) == 0 || strncmp(choice, "delete topic ",13) == 0 || strncmp(choice, "delete comment ",15) == 0 || strcmp(choice, "subscribe") == 0 || strcmp(choice, "add comment") == 0 || strcmp(choice, "quit") == 0));
         send(socket_desc, choice,strlen(choice),0);
         if (!strcmp(choice, "quit")) break;
         else if(!strcmp(choice, "create topic")){
@@ -196,14 +194,14 @@ int main(int argc, char* argv[]) {
     server_addr.sin_family      = AF_INET;
     server_addr.sin_port        = htons(SERVER_PORT); // don't forget about network byte order!
 
-     while(1){
      
         // initiate a connection on the socket
         ret = connect(socket_desc, (struct sockaddr*) &server_addr, sizeof(struct sockaddr_in));
         ERROR_HELPER(ret, "Could not create connection");
-        if (DEBUG) fprintf(stderr, "Connection established!\n");
+        printf("\e[1;1H\e[2J");     //clean
+
+        printf("\033[42;1m   Connection established!                                                                              \033[0m\n\n");
         // loop del messaggio (inserisci i comandi corretti)
-        /*
         do{
         printf("to login write authenticate or A\nto register write register o R\n> ");
         if(fgets(init, sizeof(init),stdin) != (char*)init){
@@ -220,7 +218,7 @@ int main(int argc, char* argv[]) {
         }
         // riceve la risposta del messaggio A o R
         recv_bytes = recv(socket_desc, buf, buf_len, 0);
-        // stampa la risposta del messaggio A o R ("Please insert credentials\nUsername:")
+        // stampa la risposta del messaggio A o R ("\nPlease insert credentials\nUsername:")
         printf("%s", buf);
         char username[32];
         fgets(username, sizeof(username),stdin);
@@ -229,7 +227,7 @@ int main(int argc, char* argv[]) {
         strncat(username, &end, 1);
         if(!strcmp(username, "")){
           printf("You didn't insert anything.\n");
-          break;
+          exit(1);
         }
         // sending username
         send(socket_desc, username,strlen(username),0);
@@ -248,10 +246,13 @@ int main(int argc, char* argv[]) {
             if (errno == EINTR) continue;
             ERROR_HELPER(-1, "Cannot read from socket");
         }
-        printf("%s\n", buf);
-        if(!(strcmp(buf,"Invalid credentials.\0")==0 || strcmp(buf,"Username already taken.\0")==0)) break;
-        */break;    //DEBUG: auth bypass (cancellare questa riga e decommentare)
-    }
+        
+        if(!strcmp(buf,"Registration Done.\0")){
+            printf("\n\033[42;1m   %s                                                                                 \033[0m\n\n", buf);
+            exit(EXIT_SUCCESS);
+        }
+        printf("\n\033[41;1m   %s                                                                              \033[0m\n\n", buf);
+        if((strcmp(buf,"Invalid credentials.\0")==0 || strcmp(buf,"Username already taken.\0")==0)) exit(1);;
     // printf("Sending Ready\n");       //DEBUG
     
     
