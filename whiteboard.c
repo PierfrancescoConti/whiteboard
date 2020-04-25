@@ -469,7 +469,7 @@ char* here_all_topics_to_string(topic* head, char* buf){
 
 char* wb_to_string(whiteboard* w){
   char buf[32768];
-  strcpy(buf, "Here is the whiteboard with all topics:\n\n");
+  strcpy(buf, "\n\033[44;1m   Here is the whiteboard with all topics:                                                              \033[0m\n\n");
   return here_all_topics_to_string(w->topicshead, buf);
   
 }

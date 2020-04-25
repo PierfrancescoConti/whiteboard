@@ -17,4 +17,4 @@ server:
 .PHONY: clean
 
 clean:
-	rm -f client server
+	rm -f client server test

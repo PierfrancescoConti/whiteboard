@@ -78,12 +78,16 @@ void client_loop(int socket_desc){
     while(1){
         do{
             
-            printf("\nNeed help? Write help.\n> ");
+            printf("\nNeed help? Write \033[34;1mhelp\033[0m.\n> ");
+            printf("\033[34;1m");
+
             if(fgets(choice, sizeof(choice),stdin) != (char*)choice){
                 fprintf(stderr,"Error while reading from stdin, exiting...\n");
                 exit(EXIT_FAILURE);
             }
             choice[strlen(choice)-1]='\0';
+            printf("\033[0m");
+
         }
         while(!(strcmp(choice,"help")==0 || strncmp(choice,"topic ",6)==0 || strcmp(choice,"list topics")==0 || strncmp(choice, "status ",7)==0 || strcmp(choice, "create topic") == 0 || strncmp(choice, "reply ",6) == 0 || strncmp(choice, "delete topic ",13) == 0 || strncmp(choice, "delete comment ",15) == 0 || strcmp(choice, "subscribe") == 0 || strcmp(choice, "add comment") == 0 || strcmp(choice, "quit") == 0));
         send(socket_desc, choice,strlen(choice),0);
