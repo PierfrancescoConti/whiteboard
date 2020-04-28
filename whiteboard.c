@@ -39,7 +39,7 @@ comment* new_comment(int id, char* author, time_t timestamp, char* comm, int rep
   strncpy(c->author, author, 32);
   //c->author[strlen(c->author)-1]='\0';  // stringa troncata se troppo lunga
 
-  strncpy(c->comm, comm, 32);
+  strncpy(c->comm, comm, 1024);
   //c->comm[strlen(c->comm)-1]='\0';  // stringa troncata se troppo lunga
 
   c->next=NULL;
@@ -461,6 +461,7 @@ char* here_all_topics_to_string(topic* head, char* buf){
   len+=sprintf (buf+len, "%d. ",head->id);
   len+=sprintf(buf+len,"%s\n", head->title);
   len+=sprintf(buf+len,"    by %s\n\n", head->author);
+  strcat(buf,"--------------------------------------------------------------------------------------------------------\n");
   if(head->next==NULL){
     return buf;
   }
@@ -491,12 +492,13 @@ char* here_all_comments_to_string(topic* t, comment* head, char* buf, int* done,
 
 char* tp_to_string(topic* t, int subscribed){
   char buf[32768];
-  strcpy(buf, "Here is the chosen topic with all his comments:\n\n");
+  strcpy(buf, "\n\033[44;1m   Here is the chosen topic with all his comments:                                                      \033[0m\n\n");
   int len=strlen(buf);
-  len+=sprintf (buf+len, "%d. ",t->id);
-  len+=sprintf(buf+len,"%s\n", t->title);
+  len+=sprintf (buf+len, "\033[33;1m%d\033[0m. ",t->id);
+  len+=sprintf(buf+len,"\033[1m%s\033[0m\n", t->title);
   len+=sprintf(buf+len,"%s\n", t->content);
-  len+=sprintf(buf+len,"    by %s\n\n", t->author);
+  len+=sprintf(buf+len,"\t    by %s\n\n", t->author);
+  strcat(buf,"--------------------------------------------------------------------------------------------------------\n");
 
   int done[MAX_COMMENTS];
   memset(done, -1, MAX_COMMENTS*sizeof(int));
@@ -514,14 +516,24 @@ char* child_to_string(topic* t, comment* child, char* buf, int* done, int level)
     len+=sprintf (buf+len, "\t|");   //adds tabs
   }
 
-  len+=sprintf (buf+len, "\t%d. ",child->id);
-  len+=sprintf(buf+len,"%s\n", child->comm);
+  len+=sprintf (buf+len, "\t\033[33;1m%d\033[0m. ",child->id);
+  len+=sprintf(buf+len,"\033[1m%s\033[0m", child->comm);
+  for(i=0;i<level;i++){
+    len+=sprintf (buf+len, "\t|");   //adds tabs
+  }
+  len+=sprintf (buf+len, "\n");
   for(i=0;i<level;i++){
     len+=sprintf (buf+len, "\t|");   //adds tabs
   }
 
-  len+=sprintf(buf+len,"\t    by %s", child->author);
-  len+=sprintf(buf+len,"\t\033[1;34m%s\033[0m\n\n", child->status);
+  len+=sprintf(buf+len,"\t\t    by %s", child->author);
+  len+=sprintf(buf+len,"\t\033[1;34m%s\033[0m\n", child->status);
+  for(i=0;i<level;i++){
+    len+=sprintf (buf+len, "\t|");   //adds tabs
+  }
+  len+=sprintf (buf+len, "\n");
+  strcat(buf,"--------------------------------------------------------------------------------------------------------\n");
+
   // add status? 
   // for child_to_string();
   done = add_to_arr(done, child->id,MAX_COMMENTS);
@@ -538,10 +550,12 @@ char* cm_to_string(topic* t, comment* head, char* buf, int* done){
   if(int_in_arr(done, head->id)==1) return buf;
 
   int len=strlen(buf);
-  len+=sprintf (buf+len, "\t%d. ",head->id);
-  len+=sprintf(buf+len,"%s\n", head->comm);
-  len+=sprintf(buf+len,"\t    by %s", head->author);
+  len+=sprintf (buf+len, "\t\033[33;1m%d\033[0m. ",head->id);
+  len+=sprintf(buf+len,"\033[1m%s\033[0m\n", head->comm);
+  len+=sprintf(buf+len,"\t\t    by %s", head->author);
   len+=sprintf(buf+len,"\t\033[1;34m%s\033[0m\n\n", head->status);
+  strcat(buf,"--------------------------------------------------------------------------------------------------------\n");
+
   // add status? 
   // for child_to_string();
   //print_arr(done);    //DEBUG

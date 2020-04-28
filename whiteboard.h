@@ -43,9 +43,10 @@
 //      - userAdmin.c (external users' administrator)
 //      - do IPC semaphores in main for each function or before&after shmat&shmdt
 
-//      - choose topic: fai leggere il contenuto, perchè non lo stampa
+//      - if create topic, then visualize it
 
-
+//      - DONE: to add comment, check if subscribed
+//      - DONE: choose topic: fai leggere il contenuto, perchè non lo stampa
 //      - DONE: a subscribe, dopo stampa il topic a cui si è sottoscritto
 //      - DONE: notifica per ogni topic nella pool in cui il current_user non è contenuto in viewers
 //      - DONE: topic's viewers (lista di subscribers che hanno letto i commenti - riazzerarla ad ogni nuovo commento)

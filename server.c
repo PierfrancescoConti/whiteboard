@@ -173,8 +173,8 @@ void app_loop(int shmidwb, int socket_desc, char* current_user){
           int cuid= get_user_by_usname(w, current_user)->id;
 
           if(!int_in_arr(t->subscribers, cuid)){
-            strcpy(resp, "\033[41;1m   You should subscribe first.      (usage: subscribe)                                                   \033[0m\0");
-          }   // TODO: check spaces
+            strcpy(resp, "\033[41;1m   You should subscribe first.      (usage: subscribe)                                                  \033[0m\0");
+          }
           else{
             t->commentshead = (comment*) shmat(t->shmidcm, NULL, 0);
 
@@ -213,52 +213,64 @@ void app_loop(int shmidwb, int socket_desc, char* current_user){
         else{
           whiteboard* w = (whiteboard*) shmat(shmidwb, NULL, 0);
           w->topicshead = (topic*) shmat(w->shmidto, NULL, 0);
+          w->usershead = (user*) shmat(w->shmidus, NULL, 0);
 
           topic* t=get_topic(w, current_tp_id);
-          //create comment and add
-          t->commentshead = (comment*) shmat(t->shmidcm, NULL, 0);
-          comment* r=get_comment(t,number);    // check if number (reply_id) exists
-          if(!(r==NULL)){
-            char* content=(char*)malloc(1024*sizeof(char));
+        
+          int cuid= get_user_by_usname(w, current_user)->id;
 
-            send(socket_desc, "content\0",9,0);
-
-            recv(socket_desc, content, 1024, 0);
-
-
-
-            time_t date;
-            time(&date);
-
-
-            comment* last=get_last_comment(t);    // check if number (reply_id) exists
-            comment* c=new_comment(last->id+1, current_user, date, content, number);
-            push_comment(t,c);
-            add_reply(r,c->id);
-            memset(t->viewers, -1, MAX_REPLIES*sizeof(int));    //clear viewers
-            print_arr(t->viewers);  //DEBUG
-
-
-            //printf("RID: %d\n", c->in_reply_to);
-
-            shmdt(t->commentshead);
-            shmdt(w->topicshead);
-            shmdt(w);
-
-
-            free(content);
-
-            strcpy(resp, "\033[42;1m   Comment added successfully!                                                                          \033[0m\0");
+          if(!int_in_arr(t->subscribers, cuid)){
+            send(socket_desc, "subfirst\0",10,0);
+            recv(socket_desc, resp, 1024, 0);
+            strcpy(resp, "\033[41;1m   You should subscribe first.      (usage: subscribe)                                                  \033[0m\0");
           }
           else{
-            strcpy(resp, "\033[41;1m   Invalid comment                                                                                      \033[0m\0");
-            send(socket_desc, resp,strlen(resp),0);
-            recv(socket_desc, buf, buf_len, 0);
+
+
+            //create comment and add
+            t->commentshead = (comment*) shmat(t->shmidcm, NULL, 0);
+            comment* r=get_comment(t,number);    // check if number (reply_id) exists
+            if(!(r==NULL)){
+              char* content=(char*)malloc(1024*sizeof(char));
+
+              send(socket_desc, "content\0",9,0);
+
+              recv(socket_desc, content, 1024, 0);
+
+
+
+              time_t date;
+              time(&date);
+
+
+              comment* last=get_last_comment(t);    // check if number (reply_id) exists
+              comment* c=new_comment(last->id+1, current_user, date, content, number);
+              push_comment(t,c);
+              add_reply(r,c->id);
+              memset(t->viewers, -1, MAX_REPLIES*sizeof(int));    //clear viewers
+              print_arr(t->viewers);  //DEBUG
+
+
+              //printf("RID: %d\n", c->in_reply_to);
+
+
+
+              free(content);
+
+              strcpy(resp, "\033[42;1m   Comment added successfully!                                                                          \033[0m\0");
+            }
+            else{
+              strcpy(resp, "\033[41;1m   Invalid comment                                                                                      \033[0m\0");
+              send(socket_desc, resp,strlen(resp),0);
+              recv(socket_desc, buf, buf_len, 0);
+            }
+            shmdt(t->commentshead);
           }
 
-
-
           
+          shmdt(w->usershead);
+          shmdt(w->topicshead);
+          shmdt(w);
         }
       }
       else{
@@ -316,36 +328,50 @@ void app_loop(int shmidwb, int socket_desc, char* current_user){
     else if (strncmp(buf, "add comment",11) == 0) {
       if(current_tp_id!=-1){
         //printf("aaa\n");
-        char* content=(char*)malloc(1024*sizeof(char));
-
-        send(socket_desc, "content\0",9,0);
-
-        recv(socket_desc, content, 1024, 0);
-
         whiteboard* w = (whiteboard*) shmat(shmidwb, NULL, 0);
         w->topicshead = (topic*) shmat(w->shmidto, NULL, 0);
-
-        time_t date;
-        time(&date);
+        w->usershead = (user*) shmat(w->shmidus, NULL, 0);
 
         topic* t=get_topic(w, current_tp_id);
         //create comment and add
-        t->commentshead = (comment*) shmat(t->shmidcm, NULL, 0);
+        
+        int cuid= get_user_by_usname(w, current_user)->id;
 
-        comment* last=get_last_comment(t);
-        comment* c=new_comment(last->id+1, current_user, date, content,-1);
-        push_comment(t,c);
-        memset(t->viewers, -1, MAX_REPLIES*sizeof(int));    //clear viewers
-        print_arr(t->viewers);  //DEBUG
 
-        shmdt(t->commentshead);
+        if(!int_in_arr(t->subscribers, cuid)){
+            send(socket_desc, "subfirst\0",10,0);
+            recv(socket_desc, resp, 1024, 0);
+            strcpy(resp, "\033[41;1m   You should subscribe first.      (usage: subscribe)                                                  \033[0m\0");
+        }
+        else{
+
+          char* content=(char*)malloc(1024*sizeof(char));
+
+          send(socket_desc, "content\0",9,0);
+
+          recv(socket_desc, content, 1024, 0);
+
+
+          time_t date;
+          time(&date);
+
+          t->commentshead = (comment*) shmat(t->shmidcm, NULL, 0);
+
+          comment* last=get_last_comment(t);
+          comment* c=new_comment(last->id+1, current_user, date, content,-1);
+          push_comment(t,c);
+          memset(t->viewers, -1, MAX_REPLIES*sizeof(int));    //clear viewers
+          print_arr(t->viewers);  //DEBUG
+          strcpy(resp, "\033[42;1m   Comment added successfully!                                                                          \033[0m\0");
+
+          free(content);
+          shmdt(t->commentshead);
+        }
+        shmdt(w->usershead);
         shmdt(w->topicshead);
         shmdt(w);
 
 
-        free(content);
-
-        strcpy(resp, "\033[42;1m   Comment added successfully!                                                                          \033[0m\0");
       }
       else{
         strcpy(resp, "\033[41;1m   At first you have to choose a topic.      (usage: topic [topic#])                                    \033[0m\0");

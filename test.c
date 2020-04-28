@@ -94,25 +94,29 @@ void client_loop(int socket_desc){
     print_menu();
 
 
+    memset(buf, 0, buf_len);          // FLUSH
+    memset(choice, 0, 32);          // FLUSH
+
     //create topic//
     printf("\n> \033[34;1mcreate topic\033[0m\n");
     strcpy(choice,"create topic\0");
     send(socket_desc, choice,strlen(choice),0);
     recv(socket_desc, buf, buf_len, 0);
 
-    printf("Insert here Topic's Title and Content (Press Enter to send)\nTitle> Titolo Topic Test\n");
+    printf("\n\033[107;1m\033[30;1mInsert here Topic's Title and Content (Press Enter to send)                                             \033[0m\n\n\033[97;1mTitle\033[0m> Titolo Topic Test\n");
 
     send(socket_desc, "Titolo Topic Test\n",20,0);
     recv(socket_desc, buf, buf_len, 0);
 
-    printf("Content> Contenuto Topic Test\n\n");
+    printf("\n\033[97;1mContent\033[0m> Contenuto Topic Test\n\n");
     send(socket_desc, "Contenuto Topic Test\n",22,0);
     recv(socket_desc, buf, buf_len, 0);
 
     printf("%s\n", buf);
 
 
-
+    memset(buf, 0, buf_len);          // FLUSH
+    memset(choice, 0, 32);          // FLUSH
 
 
     //list topics//
@@ -123,6 +127,77 @@ void client_loop(int socket_desc){
 
     printf("%s\n", buf);
 
+    memset(buf, 0, buf_len);          // FLUSH
+    memset(choice, 0, 32);          // FLUSH
+
+    //choose topic//
+    printf("\n> \033[34;1mtopic 0\033[0m\n");
+    strcpy(choice,"topic 0\0");
+    send(socket_desc, choice,strlen(choice),0);
+    recv(socket_desc, buf, buf_len, 0);
+
+    printf("%s\n", buf);
+
+    memset(buf, 0, buf_len);          // FLUSH
+    memset(choice, 0, 32);          // FLUSH
+
+    //add comment//
+    printf("\n> \033[34;1madd comment\033[0m\n");
+    strcpy(choice,"add comment\0");
+    send(socket_desc, choice,strlen(choice),0);
+    recv(socket_desc, buf, buf_len, 0);
+    if(strncmp(buf, "content",7)){
+        send(socket_desc, "NO\0",3,0);
+        printf("You cannot add a comment to this topic.\n");
+    }
+    else{
+        printf("\n\033[107;1m\033[30;1mInsert here the Comment to the current Topic. (Press Enter to send)                                     \033[0m\n\n\033[97;1mComment\033[0m> Comment Test\n");
+
+        send(socket_desc, "Comment Test\n",22,0);
+    }
+    recv(socket_desc, buf, buf_len, 0);
+
+    printf("%s\n", buf);
+
+    memset(buf, 0, buf_len);          // FLUSH
+    memset(choice, 0, 32);          // FLUSH
+
+    //subscribe//
+    printf("\n> \033[34;1msubscribe\033[0m\n");
+    strcpy(choice,"subscribe\0");
+    send(socket_desc, choice,strlen(choice),0);
+    recv(socket_desc, buf, buf_len, 0);
+
+    printf("%s\n", buf);
+
+    memset(buf, 0, buf_len);          // FLUSH
+    memset(choice, 0, 32);          // FLUSH
+
+    //add comment//
+    printf("\n> \033[34;1madd comment\033[0m\n");
+    strcpy(choice,"add comment\0");
+    send(socket_desc, choice,strlen(choice),0);
+    recv(socket_desc, buf, buf_len, 0);
+
+    printf("\n\033[107;1m\033[30;1mInsert here the Comment to the current Topic. (Press Enter to send)                                     \033[0m\n\n\033[97;1mComment\033[0m> Comment Test\n");
+
+    send(socket_desc, "Comment Test\n",22,0);
+    recv(socket_desc, buf, buf_len, 0);
+
+    printf("%s\n", buf);
+    memset(buf, 0, buf_len);          // FLUSH
+    memset(choice, 0, 32);          // FLUSH
+
+    //choose topic//
+    printf("\n> \033[34;1mtopic 0\033[0m\n");
+    strcpy(choice,"topic 0\0");
+    send(socket_desc, choice,strlen(choice),0);
+    recv(socket_desc, buf, buf_len, 0);
+
+    printf("%s\n", buf);
+
+    memset(buf, 0, buf_len);          // FLUSH
+    memset(choice, 0, 32);          // FLUSH
 
     //quit//
     printf("\n> \033[34;1mquit\033[0m\n");

@@ -97,7 +97,7 @@ void client_loop(int socket_desc){
             if(strncmp(buf, "title",5)){
                 printf("errore in create topic (title)");
             }
-            printf("Insert here Topic's Title and Content (Press Enter to send)\nTitle> ");
+            printf("\n\033[107;1m\033[30;1mInsert here Topic's Title and Content (Press Enter to send)                                             \033[0m\n\n\033[97;1mTitle\033[0m> ");
             if(fgets(buf, 256,stdin) != (char*)buf){
                 fprintf(stderr,"Error while reading from stdin, exiting...\n");
                 exit(EXIT_FAILURE);
@@ -110,7 +110,7 @@ void client_loop(int socket_desc){
                 printf("errore in create topic (content)");
             }
 
-            printf("Content> ");
+            printf("\n\033[97;1mContent\033[0m> ");
             if(fgets(buf, 1024,stdin) != (char*)buf){
                 fprintf(stderr,"Error while reading from stdin, exiting...\n");
                 exit(EXIT_FAILURE);
@@ -123,10 +123,10 @@ void client_loop(int socket_desc){
             recv(socket_desc, buf, buf_len, 0);
             if(strncmp(buf, "content",7)){
                 send(socket_desc, "NO\0",3,0);
-                printf("errore in add comment (content)");
+                printf("You cannot add a comment to this topic.");
             }
             else{
-                printf("Insert here the Comment to the current Topic. (Press Enter to send)\nComment> ");
+                printf("\n\033[107;1m\033[30;1mInsert here the Comment to the current Topic. (Press Enter to send)                                     \033[0m\n\n\033[97;1mComment\033[0m> ");
                 if(fgets(buf, 1024,stdin) != (char*)buf){
                     fprintf(stderr,"Error while reading from stdin, exiting...\n");
                     exit(EXIT_FAILURE);
@@ -140,7 +140,7 @@ void client_loop(int socket_desc){
             recv(socket_desc, buf, buf_len, 0);
             if(strncmp(buf, "content",7)){
                 send(socket_desc, "NO\0",3,0);
-                printf("errore in add comment (content)");
+                printf("You cannot add a comment to this topic.");
             }
             else{
                 printf("Insert here the Comment to the current Topic. (Press Enter to send)\nComment> ");
@@ -207,11 +207,14 @@ int main(int argc, char* argv[]) {
         printf("\033[42;1m   Connection established!                                                                              \033[0m\n\n");
         // loop del messaggio (inserisci i comandi corretti)
         do{
-        printf("to login write authenticate or A\nto register write register o R\n> ");
+        printf("\n\033[107;1m\033[30;1m   To login write \033[34;1mauthenticate\033[30;1m or \033[34;1mA\033[30;1m                                                                     \n   To register write \033[34;1mregister\033[30;1m or \033[34;1mR\033[30;1m                                                                      \033[0m\n> ");
+        printf("\033[34;1m");
         if(fgets(init, sizeof(init),stdin) != (char*)init){
             fprintf(stderr,"Error while reading from stdin, exiting...\n");
             exit(EXIT_FAILURE);
         }
+        printf("\033[0m");
+
         init[strlen(init)-1]='\0';
         }
         while(!(strcmp(init,"authenticate")==0 || strcmp(init,"register")==0 || strcmp(init,"R")==0 || strcmp(init,"A")==0));
@@ -223,9 +226,10 @@ int main(int argc, char* argv[]) {
         // riceve la risposta del messaggio A o R
         recv_bytes = recv(socket_desc, buf, buf_len, 0);
         // stampa la risposta del messaggio A o R ("\nPlease insert credentials\nUsername:")
-        printf("%s", buf);
+        printf("\n\033[1m%s\033[0m", buf);
         char username[32];
         fgets(username, sizeof(username),stdin);
+        
         replace_char(username, '\n', '\0');
         char end='\0';    //????
         strncat(username, &end, 1);
@@ -237,7 +241,7 @@ int main(int argc, char* argv[]) {
         send(socket_desc, username,strlen(username),0);
         // receiving password request ("Password: ")
         recv_bytes = recv(socket_desc, buf, buf_len, 0);
-        printf("%s", buf);
+        printf("\033[1m%s\033[0m", buf);
         char password[32];
         fgets(password, sizeof(password),stdin);
         replace_char(password, '\n', '\0');
