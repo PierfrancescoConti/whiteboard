@@ -143,7 +143,7 @@ void client_loop(int socket_desc){
                 printf("You cannot add a comment to this topic.");
             }
             else{
-                printf("Insert here the Comment to the current Topic. (Press Enter to send)\nComment> ");
+                printf("\n\033[107;1m\033[30;1mInsert here the Comment to the current Topic. (Press Enter to send)                                     \033[0m\n\n\033[97;1mComment\033[0m> ");
                 if(fgets(buf, 1024,stdin) != (char*)buf){
                     fprintf(stderr,"Error while reading from stdin, exiting...\n");
                     exit(EXIT_FAILURE);

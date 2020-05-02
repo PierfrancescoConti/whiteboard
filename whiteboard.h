@@ -11,6 +11,7 @@
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
+#include <sys/sem.h>
 
 #include <errno.h>
 
@@ -41,9 +42,12 @@
 //      - free malloc after adding.
 //      - test.c (automated client that does things) -> at the end do more things and user_test name random (e.g. user_test75583)
 //      - userAdmin.c (external users' administrator)
-//      - do IPC semaphores in main for each function or before&after shmat&shmdt
+//      - check if MAX_SIZE is exceeded for each buffer -> if so, operation not permitted
+//      - DONE: do SYSV semaphores in main for each function or before&after shmat&shmdt
 
-//      - if create topic, then visualize it
+//      - DONE: if create topic, then visualize it
+//      - check if user input blocks other's executions -> DONES: add comment, reply, Register, Auth
+//      - check ret value! for everything!
 
 //      - DONE: to add comment, check if subscribed
 //      - DONE: choose topic: fai leggere il contenuto, perchè non lo stampa
@@ -56,7 +60,7 @@
 //
 //      - DONE: seen: altra lista di interi per ogni commento degli utenti che lo hanno visualizzato 
 //            (usando choose topic dopo essersi sottoscritti) al fine di dare un senso allo status del commento
-//      - DONE?? -> bisogna vedere con diversi utenti: during subscription CHECK if already subscribed
+//      - during subscription CHECK if already subscribed
 //      - DONE: se il post è mio, sono automaticamente un subscriber (e un viewer)
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -209,8 +213,8 @@ char* cm_to_string(topic* t, comment* head, char* buf, int* done);
 
 // authenticator
 int validate_user(whiteboard*w, char* us, char* pw);
-char* Auth(int shmidwb, int socket_desc);
-char* Register(int shmidwb, int socket_desc);
+char* Auth(int shmidwb, int socket_desc, int mutex);
+char* Register(int shmidwb, int socket_desc, int mutex);
 
 
 
@@ -228,3 +232,25 @@ int* add_to_arr(int* arr, int i, int max_size);
 // checks
 int check_seen_by_all(int* subscribers, int* seen);   //can be generalized: check A subset of B
 void check_all_seen_by_all(int* subscribers, comment* head);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// semaphores
+
+int initsem (key_t semkey);
+
+int Pwait (int semid);
+int Vpost (int semid);

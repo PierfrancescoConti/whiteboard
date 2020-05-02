@@ -18,7 +18,7 @@ whiteboard* create_wb(whiteboard* w){
   w->topicshead=(topic*) shmat(w->shmidto, NULL, 0);
   time_t date;
   time(&date);
-  *(w->topicshead)=*(new_topic(0, "admin\0", "First topic.\n", "Hello, world! This is my firs topic.\n", date));
+  *(w->topicshead)=*(new_topic(0, "admin\0", "First topic.\n", "Hello, world! This is my first topic.\n", date));
   shmdt(w->topicshead);
   w->usershead=(user*) shmat(w->shmidus, NULL, 0);
   *(w->usershead)=*(new_user(0, "admin\0", "admin\0"));
@@ -458,9 +458,9 @@ void print_pool(whiteboard* w){
 // to string
 char* here_all_topics_to_string(topic* head, char* buf){
   int len=strlen(buf);
-  len+=sprintf (buf+len, "%d. ",head->id);
-  len+=sprintf(buf+len,"%s\n", head->title);
-  len+=sprintf(buf+len,"    by %s\n\n", head->author);
+  len+=sprintf (buf+len,"\033[33;1m%d\033[0m. ",head->id);
+  len+=sprintf(buf+len,"\033[1m%s\033[0m\n", head->title);
+  len+=sprintf(buf+len,"\t    by %s\n\n", head->author);
   strcat(buf,"--------------------------------------------------------------------------------------------------------\n");
   if(head->next==NULL){
     return buf;
@@ -597,13 +597,10 @@ int validate_user(whiteboard* w, char* us, char* pw){
 }
 
 
-char* Auth(int shmidwb, int socket_desc){
+char* Auth(int shmidwb, int socket_desc, int mutex){
   char* s="Please insert credentials.\nUsername: \0";
   send(socket_desc, s, 40, 0);
 
-  // attach to shared memory
-  whiteboard* w = shmat(shmidwb, NULL, 0);
-  w->usershead=(user*) shmat(w->shmidus, NULL, 0);
 
   char* username=(char*)malloc(32*sizeof(char));
   size_t b_len = 32;
@@ -616,6 +613,12 @@ char* Auth(int shmidwb, int socket_desc){
   recv(socket_desc, password, b_len, 0);    // gestire gli errori di TUTTE le recv
   replace_char(password, '\n', '\0');
 
+  // attach to shared memory
+  Pwait(mutex);
+  whiteboard* w = shmat(shmidwb, NULL, 0);
+  w->usershead=(user*) shmat(w->shmidus, NULL, 0);
+
+
   int ret=validate_user(w, username, password);
   //print_users(w);     //DEBUG
   if(ret==0){
@@ -623,21 +626,20 @@ char* Auth(int shmidwb, int socket_desc){
     shmdt(w->usershead);
     shmdt(w);
     printf("Authentication successful.\n");
+    Vpost(mutex);
     return username;
   }
   shmdt(w->usershead);
   shmdt(w);
+  Vpost(mutex);
   return NULL;
 }
 
 
-char* Register(int shmidwb, int socket_desc){
+char* Register(int shmidwb, int socket_desc, int mutex){
   char* s="Please insert credentials.\nUsername: \0";
   send(socket_desc, s, 40, 0);
 
-  // attach to shared memory
-  whiteboard* w = shmat(shmidwb, NULL, 0);
-  w->usershead=(user*) shmat(w->shmidus, NULL, 0);
 
 
   char* username=(char*)malloc(sizeof(char)*32);
@@ -662,6 +664,12 @@ char* Register(int shmidwb, int socket_desc){
   // printf("lens: %d - %d\n", strlen(username) ,strlen(password));   // DEBUG
   
 
+    // attach to shared memory
+  Pwait(mutex);
+  whiteboard* w = shmat(shmidwb, NULL, 0);
+  w->usershead=(user*) shmat(w->shmidus, NULL, 0);
+
+
   user* us=get_user_by_usname(w, username);
   
   if(us==NULL){
@@ -685,11 +693,13 @@ char* Register(int shmidwb, int socket_desc){
     free(password);
     shmdt(w->usershead);
     shmdt(w);
+    Vpost(mutex);
     return u->username;
   }
   printf("Username already taken.\n");
   shmdt(w->usershead);
   shmdt(w);
+  Vpost(mutex);
   //free(username);
   //free(password);
   return NULL;
@@ -769,6 +779,76 @@ void check_all_seen_by_all(int* subscribers, comment* head){
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+// semaphores
+int initsem (key_t semkey)
+{
+    int status = 0, semid;
+    union semun {		/* this has to be declared */
+      int val;
+      struct semid_ds *stat;
+      ushort *array;
+    } ctl_arg;
+
+    if ((semid = semget (semkey, 1, 0600 | IPC_CREAT)) > 0) {
+      ctl_arg.val = 1;	/* semctl should be called with */
+      status = semctl (semid, 0, SETVAL, ctl_arg);
+    }
+
+    if (semid < 0 || status < 0) {
+      perror ("initsem");
+      return (-1);
+    }
+    else return (semid);
+}
+
+
+int Pwait (int semid)
+{
+
+    struct sembuf p_buf;
+
+    p_buf.sem_num = 0;
+    p_buf.sem_op = -1;
+    p_buf.sem_flg = 0;
+
+    if (semop (semid, &p_buf, 1) == -1) {
+      perror ("Pwait(semid) failed");
+      return (-1);
+    }
+    else {
+      return (0);
+    }
+}
+
+
+int Vpost (int semid)
+{
+
+    struct sembuf v_buf;
+
+    v_buf.sem_num = 0;
+    v_buf.sem_op = 1;
+    v_buf.sem_flg = 0;
+
+    if (semop (semid, &v_buf, 1) == -1) {
+      perror ("Vpost(semid) failed");
+      return (-1);
+    }
+    else {
+      return (0);
+    }
+}
 
 
 

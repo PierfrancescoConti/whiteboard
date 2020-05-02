@@ -19,7 +19,7 @@ int get_digit(char* buf, int i){    // i is the num's starting index
   return number;
 }
 
-void notify(int shmidwb, int socket_desc, char* current_user){
+void notify(int shmidwb, int socket_desc, char* current_user, int mutex){
   int ret, recv_bytes;
   char* buf=(char*)malloc(16*sizeof(char));
   size_t buf_len = 16;
@@ -32,6 +32,7 @@ void notify(int shmidwb, int socket_desc, char* current_user){
 
   ////////////// notify //////////////
   if (strncmp(buf, "notify",6) == 0) {
+    Pwait(mutex);
     whiteboard* w = (whiteboard*) shmat(shmidwb, NULL, 0);
     w->topicshead = (topic*) shmat(w->shmidto, NULL, 0);
     w->usershead = (user*) shmat(w->shmidus, NULL, 0);
@@ -67,6 +68,7 @@ void notify(int shmidwb, int socket_desc, char* current_user){
     shmdt(w->usershead);
     shmdt(w->topicshead);
     shmdt(w);
+    Vpost(mutex);
   }
   //printf("SENDING: %s\n",resp);   //DEBUG
 
@@ -74,8 +76,8 @@ void notify(int shmidwb, int socket_desc, char* current_user){
 }
 
 
-void app_loop(int shmidwb, int socket_desc, char* current_user){
-  notify(shmidwb, socket_desc, current_user);
+void app_loop(int shmidwb, int socket_desc, char* current_user, int mutex){
+  notify(shmidwb, socket_desc, current_user, mutex);
   printf("%s\n",current_user);    //DEBUG
   int ret, recv_bytes;
   int current_tp_id=-1;
@@ -104,6 +106,7 @@ void app_loop(int shmidwb, int socket_desc, char* current_user){
       }
       else{
         // printf("num: %d\n", number);
+        Pwait(mutex);
         whiteboard* w = (whiteboard*) shmat(shmidwb, NULL, 0);
         w->topicshead = (topic*) shmat(w->shmidto, NULL, 0);
         w->usershead = (user*) shmat(w->shmidus, NULL, 0);
@@ -134,6 +137,7 @@ void app_loop(int shmidwb, int socket_desc, char* current_user){
         shmdt(w->usershead);
         shmdt(w->topicshead);
         shmdt(w);
+        Vpost(mutex);
       }
       printf("current_tp_id: %d\n",current_tp_id);    //DEBUG
       
@@ -141,6 +145,7 @@ void app_loop(int shmidwb, int socket_desc, char* current_user){
     } 
     ////////// list topics //////////
     else if (strncmp(buf, "list topics",11) == 0) {
+      Pwait(mutex);
       whiteboard* w = (whiteboard*) shmat(shmidwb, NULL, 0);
       w->topicshead = (topic*) shmat(w->shmidto, NULL, 0);
       
@@ -152,6 +157,7 @@ void app_loop(int shmidwb, int socket_desc, char* current_user){
       
       shmdt(w->topicshead);
       shmdt(w);
+      Vpost(mutex);
       // printf("%s\n", resp);   //DEBUG
     } 
     ////////// status comment //////////
@@ -161,6 +167,7 @@ void app_loop(int shmidwb, int socket_desc, char* current_user){
         strcpy(resp, "\033[41;1m   Invalid comment                                                                                      \033[0m\0");
       }
       else{
+        Pwait(mutex);
         whiteboard* w = (whiteboard*) shmat(shmidwb, NULL, 0);
         w->topicshead = (topic*) shmat(w->shmidto, NULL, 0);
         w->usershead = (user*) shmat(w->shmidus, NULL, 0);
@@ -196,6 +203,7 @@ void app_loop(int shmidwb, int socket_desc, char* current_user){
         shmdt(w->usershead);
         shmdt(w->topicshead);
         shmdt(w);
+        Vpost(mutex);
       }
     } 
     ////////// reply to comment //////////
@@ -211,6 +219,7 @@ void app_loop(int shmidwb, int socket_desc, char* current_user){
           recv(socket_desc, buf, buf_len, 0);
         }
         else{
+          Pwait(mutex);
           whiteboard* w = (whiteboard*) shmat(shmidwb, NULL, 0);
           w->topicshead = (topic*) shmat(w->shmidto, NULL, 0);
           w->usershead = (user*) shmat(w->shmidus, NULL, 0);
@@ -231,11 +240,14 @@ void app_loop(int shmidwb, int socket_desc, char* current_user){
             t->commentshead = (comment*) shmat(t->shmidcm, NULL, 0);
             comment* r=get_comment(t,number);    // check if number (reply_id) exists
             if(!(r==NULL)){
+              // release semaphore while waiting for user input
+              Vpost(mutex);
               char* content=(char*)malloc(1024*sizeof(char));
 
               send(socket_desc, "content\0",9,0);
 
               recv(socket_desc, content, 1024, 0);
+              Pwait(mutex);
 
 
 
@@ -271,6 +283,7 @@ void app_loop(int shmidwb, int socket_desc, char* current_user){
           shmdt(w->usershead);
           shmdt(w->topicshead);
           shmdt(w);
+          Vpost(mutex);
         }
       }
       else{
@@ -294,6 +307,7 @@ void app_loop(int shmidwb, int socket_desc, char* current_user){
 
       recv(socket_desc, content, 1024, 0);
 
+      Pwait(mutex);
       whiteboard* w = (whiteboard*) shmat(shmidwb, NULL, 0);
       w->topicshead = (topic*) shmat(w->shmidto, NULL, 0);
       w->usershead = (user*) shmat(w->shmidus, NULL, 0);
@@ -308,6 +322,10 @@ void app_loop(int shmidwb, int socket_desc, char* current_user){
       add_subscriber(t,cuid);
       add_subscription_entry(w,cuid,t->id);
       add_viewer(t,cuid);
+      t->commentshead = (comment*) shmat(t->shmidcm, NULL, 0);
+      add_all_seen(t->commentshead,cuid);
+      check_all_seen_by_all(t->subscribers, t->commentshead);
+      shmdt(t->commentshead);
 
 
       add_topic(w, t);
@@ -315,6 +333,7 @@ void app_loop(int shmidwb, int socket_desc, char* current_user){
       shmdt(w->usershead);
       shmdt(w->topicshead);
       shmdt(w);
+      Vpost(mutex);
 
 
       free(content);
@@ -327,7 +346,7 @@ void app_loop(int shmidwb, int socket_desc, char* current_user){
     ////////// add comment //////////
     else if (strncmp(buf, "add comment",11) == 0) {
       if(current_tp_id!=-1){
-        //printf("aaa\n");
+        
         whiteboard* w = (whiteboard*) shmat(shmidwb, NULL, 0);
         w->topicshead = (topic*) shmat(w->shmidto, NULL, 0);
         w->usershead = (user*) shmat(w->shmidus, NULL, 0);
@@ -344,13 +363,15 @@ void app_loop(int shmidwb, int socket_desc, char* current_user){
             strcpy(resp, "\033[41;1m   You should subscribe first.      (usage: subscribe)                                                  \033[0m\0");
         }
         else{
+          // release semaphore while waiting for user input
+          Vpost(mutex);
 
           char* content=(char*)malloc(1024*sizeof(char));
 
           send(socket_desc, "content\0",9,0);
 
           recv(socket_desc, content, 1024, 0);
-
+          Pwait(mutex);
 
           time_t date;
           time(&date);
@@ -370,6 +391,7 @@ void app_loop(int shmidwb, int socket_desc, char* current_user){
         shmdt(w->usershead);
         shmdt(w->topicshead);
         shmdt(w);
+        Vpost(mutex);
 
 
       }
@@ -385,6 +407,7 @@ void app_loop(int shmidwb, int socket_desc, char* current_user){
     ////////// subscribe to topic //////////
     else if (strncmp(buf, "subscribe",9) == 0) {
       if(current_tp_id!=-1){
+        Pwait(mutex);
         whiteboard* w = (whiteboard*) shmat(shmidwb, NULL, 0);
         w->topicshead = (topic*) shmat(w->shmidto, NULL, 0);
         w->usershead = (user*) shmat(w->shmidus, NULL, 0);
@@ -394,28 +417,33 @@ void app_loop(int shmidwb, int socket_desc, char* current_user){
         //printf("us: %s\n",u->username);     //DEBUG
         topic* t=get_topic(w, current_tp_id);
         t->commentshead = (comment*) shmat(t->shmidcm, NULL, 0);
+        int cuid= get_user_by_usname(w, current_user)->id;
 
         //printf("us: %s  -  tp:%d\n",u->username,t->id);     //DEBUG
         //CHECK if already subscribed
-        int cuid= get_user_by_usname(w, current_user)->id;
+        if(int_in_arr(t->subscribers, cuid)){
+          strcpy(resp, "\033[43;1m   Already subscribed.                                                                                  \033[0m\0");
+        }
+        else{
 
-        add_subscriber(t,u->id);
-        add_subscription_entry(w,u->id,t->id);
-        add_viewer(t,u->id);
-        add_all_seen(t->commentshead,u->id);
-        check_all_seen_by_all(t->subscribers, t->commentshead);
-        //printf("Subscribers:\n");     //DEBUG
-        //printf("%d-%d\n",t->subscribers[0],t->subscribers[1]);     //DEBUG
+          add_subscriber(t,u->id);
+          add_subscription_entry(w,u->id,t->id);
+          add_viewer(t,u->id);
+          add_all_seen(t->commentshead,u->id);
+          check_all_seen_by_all(t->subscribers, t->commentshead);
+          //printf("Subscribers:\n");     //DEBUG
+          //printf("%d-%d\n",t->subscribers[0],t->subscribers[1]);     //DEBUG
+          strcpy(resp, "\033[42;1m   Subscribed.                                                                                          \033[0m\n\n");
+          strcat(resp, tp_to_string(t,1));
+          strcat(resp, "\0");
 
-        
-        strcpy(resp, "\033[42;1m   Subscribed.                                                                                          \033[0m\n\n");
-        strcat(resp, tp_to_string(t,1));
-        strcat(resp, "\0");
+        }
 
         shmdt(t->commentshead);
         shmdt(w->usershead);
         shmdt(w->topicshead);
         shmdt(w);
+        Vpost(mutex);
       }
       else strcpy(resp, "\033[41;1m   At first you have to choose a topic.      (usage: topic [topic#])                                    \033[0m\0");
     } 
@@ -426,6 +454,7 @@ void app_loop(int shmidwb, int socket_desc, char* current_user){
       //printf("%d\n",number);    //DEBUG
       if(number==-1) strcpy(resp, "I don't understand which topic I should delete.\0");
       else{
+        Pwait(mutex);
         whiteboard* w = (whiteboard*) shmat(shmidwb, NULL, 0);
         w->topicshead = (topic*) shmat(w->shmidto, NULL, 0);
 
@@ -446,6 +475,7 @@ void app_loop(int shmidwb, int socket_desc, char* current_user){
 
         shmdt(w->topicshead);
         shmdt(w);
+        Vpost(mutex);
       }
       
     }
@@ -474,7 +504,7 @@ void app_loop(int shmidwb, int socket_desc, char* current_user){
 
 ////////////////////////////////////////// PROCESS ROUTINE //////////////////////////////////////////
 
-void* connection_handler(int shmidwb, int socket_desc, struct sockaddr_in* client_addr) {
+void* connection_handler(int shmidwb, int socket_desc, struct sockaddr_in* client_addr, int mutex) {
 
     int ret, recv_bytes;
 
@@ -499,7 +529,7 @@ void* connection_handler(int shmidwb, int socket_desc, struct sockaddr_in* clien
     if (buf[0]=='R' || buf[0]=='r'){
       char* resp=NULL;
       while(1){
-        resp=Register(shmidwb, socket_desc);
+        resp=Register(shmidwb, socket_desc, mutex);
 
         if(resp!=NULL) break;
         // printf("Username already taken.\n");     //DEBUG
@@ -523,7 +553,7 @@ void* connection_handler(int shmidwb, int socket_desc, struct sockaddr_in* clien
 	///////////////////////////////AUTH///////////////////////////////
     if (buf[0]=='A' || buf[0]=='a'){
 
-      current_user=Auth(shmidwb, socket_desc);
+      current_user=Auth(shmidwb, socket_desc, mutex);
       if(current_user==NULL){
         // printf("Invalid credentials.\n");     //DEBUG
         send(socket_desc, "Invalid credentials.\0",32, 0);
@@ -545,7 +575,7 @@ void* connection_handler(int shmidwb, int socket_desc, struct sockaddr_in* clien
       //strncat(resp, &end, 1);
   		send(socket_desc, resp, 32, 0);
 
-      app_loop(shmidwb, socket_desc, current_user);
+      app_loop(shmidwb, socket_desc, current_user, mutex);
 
     }
 	// close socket
@@ -569,6 +599,19 @@ int main(int argc, char* argv[]) {
     int socket_desc, client_desc;
 
 
+    //semaphore
+    key_t semkey = 0x200;
+    int mutex;
+
+    if ((mutex = initsem (semkey)) < 0) {
+        exit (1);
+    }
+
+
+
+
+
+
     // shared memory
     int shmidwb;
 
@@ -579,7 +622,7 @@ int main(int argc, char* argv[]) {
         exit(1);
     }
 
-    // attach to shared memory
+    // attach to shared memory  // no need to protect with semaphores
     whiteboard* w = (whiteboard*) shmat(shmidwb, NULL, 0);
 
     w=create_wb(w);
@@ -632,7 +675,7 @@ int main(int argc, char* argv[]) {
         }
         else if (processID == 0){  /* If this is the child process */
 
-            connection_handler(shmidwb, client_desc, client_addr);
+            connection_handler(shmidwb, client_desc, client_addr,mutex);
 
         }
         else client_addr = calloc(1, sizeof(struct sockaddr_in));
