@@ -49,7 +49,7 @@ void print_menu(){      //help
     printf("--------------------------------------------------------------------------------------------------------\n");
     printf("-> \033[1;34msubscribe              \033[0m|-  You subscribe to the current topic and will receive a notification\n                          |   about changes.\n");
     printf("--------------------------------------------------------------------------------------------------------\n");
-    printf("-> \033[1;34madd comment            \033[0m|-  You can simply add a comment to a topic.\n");
+    printf("-> \033[1;34madd thread            \033[0m|-  You can simply add a comment to a topic.\n");
     printf("--------------------------------------------------------------------------------------------------------\n");
     printf("-> \033[1;34mreply [comment#]       \033[0m|-  You can write a comment as response to another comment.\n");
     printf("--------------------------------------------------------------------------------------------------------\n");
@@ -71,6 +71,7 @@ void print_menu(){      //help
 void client_loop(int socket_desc){
 
     char* buf=(char*)malloc(32768*sizeof(char));
+    MALLOC_ERROR_HELPER(buf, "Malloc Error.");
     size_t buf_len = 32768;
 
     char choice[32];
@@ -150,9 +151,9 @@ void client_loop(int socket_desc){
 
     printf("\n\n\n");
 
-    //add comment//
-    printf("\n> \033[34;1madd comment\033[0m\n");
-    strcpy(choice,"add comment\0");
+    //add thread//
+    printf("\n> \033[34;1madd thread\033[0m\n");
+    strcpy(choice,"add thread\0");
     send(socket_desc, choice,strlen(choice),0);
     recv(socket_desc, buf, buf_len, 0);
     if(strncmp(buf, "content",7)){
@@ -186,9 +187,9 @@ void client_loop(int socket_desc){
 
     printf("\n\n\n");
 
-    //add comment//
-    printf("\n> \033[34;1madd comment\033[0m\n");
-    strcpy(choice,"add comment\0");
+    //add thread//
+    printf("\n> \033[34;1madd thread\033[0m\n");
+    strcpy(choice,"add thread\0");
     send(socket_desc, choice,strlen(choice),0);
     recv(socket_desc, buf, buf_len, 0);
 

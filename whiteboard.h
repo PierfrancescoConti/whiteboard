@@ -15,6 +15,8 @@
 
 #include <errno.h>
 
+#include "global.h"
+
 
 
 #define MAX_USERS 128
@@ -43,10 +45,11 @@
 //      - test.c (automated client that does things) -> at the end do more things and user_test name random (e.g. user_test75583)
 //      - userAdmin.c (external users' administrator)
 //      - check if MAX_SIZE is exceeded for each buffer -> if so, operation not permitted
+//      - implement delete topic
 //      - DONE: do SYSV semaphores in main for each function or before&after shmat&shmdt
 
 //      - DONE: if create topic, then visualize it
-//      - check if user input blocks other's executions -> DONES: add comment, reply, Register, Auth
+//      - check if user input blocks other's executions -> DONES: add comment, reply, create topic, Register, Auth
 //      - check ret value! for everything!
 
 //      - DONE: to add comment, check if subscribed
@@ -78,7 +81,7 @@ typedef struct sp{
 
 typedef struct cm{
   int id;
-  int in_reply_to;    // -1 if none
+  int in_reply_to;    // -1 if none (isThread)
   int replies[MAX_REPLIES];
   int seen[MAX_SUBSCRIBERS];
   time_t timestamp;
@@ -148,7 +151,11 @@ void add_user_to_pool(whiteboard* w, int uid);
 void add_subscription_entry(whiteboard* w, int uid, int tid);
 
 
+
 // deletion
+void del_us(user* head, int id_us);
+void delete_user(whiteboard* w, int id_us);
+
 void del_tp(topic* head, int id_tp);
 void delete_topic(whiteboard* w, int id_tp);
 
@@ -202,6 +209,9 @@ void print_pool(whiteboard* w);
 // to string
 char* here_all_topics_to_string(topic* head, char* buf);
 char* wb_to_string(whiteboard* w);
+
+char* here_all_users_to_string(user* head, char* buf);
+char* us_to_string(whiteboard* w);
 
 char* here_all_comments_to_string(topic* t, comment* head, char* buf, int* done, int subscribed);
 char* tp_to_string(topic* t, int subscribed);

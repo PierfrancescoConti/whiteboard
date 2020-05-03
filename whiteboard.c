@@ -32,6 +32,7 @@ whiteboard* create_wb(whiteboard* w){
 
 comment* new_comment(int id, char* author, time_t timestamp, char* comm, int reply_id){
   comment* c = (comment*) malloc(sizeof(comment));
+  MALLOC_ERROR_HELPER(c, "Malloc Error.");
   c->id=id;
   c->timestamp=timestamp;
   strcpy(c->status, "O\0");   //Sent
@@ -52,6 +53,7 @@ comment* new_comment(int id, char* author, time_t timestamp, char* comm, int rep
 
 topic* new_topic(int id, char* author, char* title, char* content, time_t timestamp){
   topic* t = (topic*) malloc(sizeof(topic));
+  MALLOC_ERROR_HELPER(t, "Malloc Error.");
   t->id=id;
   strncpy(t->author, author, 32);
   //t->author[strlen(t->author)-1]='\0';  // stringa troncata se troppo lunga
@@ -80,6 +82,7 @@ topic* new_topic(int id, char* author, char* title, char* content, time_t timest
 
 user* new_user(int id, char* username, char* password){
   user* u = (user*) malloc(sizeof(user));
+  MALLOC_ERROR_HELPER(u, "Malloc Error.");
   u->id=id;
 
   strncpy(u->username, username, 31);
@@ -235,9 +238,23 @@ void add_subscription_entry(whiteboard* w, int uid, int tid){
 
 
 
-
-
 // deletion
+void del_us(user* head, int id_us){
+  if(head->next==NULL){
+    return;
+  }
+  if((head->next)->id==id_us){
+    user* tmp=head->next;
+    head->next=tmp->next;
+  }
+  else return del_us(head->next, id_us);
+}
+
+void delete_user(whiteboard* w, int id_us){
+  del_us(w->usershead, id_us);
+}
+
+
 void del_tp(topic* head, int id_tp){
   if(head->next==NULL){
     return;
@@ -248,7 +265,6 @@ void del_tp(topic* head, int id_tp){
   }
   else return del_tp(head->next, id_tp);
 }
-
 
 void delete_topic(whiteboard* w, int id_tp){
   del_tp(w->topicshead, id_tp);
@@ -476,6 +492,25 @@ char* wb_to_string(whiteboard* w){
 }
 
 
+char* here_all_users_to_string(user* head, char* buf){
+  int len=strlen(buf);
+  len+=sprintf (buf+len,"\033[33;1m%d\033[0m. ",head->id);
+  len+=sprintf(buf+len,"\033[1m%s\033[0m\n", head->username);
+  if(head->next==NULL){
+    return buf;
+  }
+  return here_all_users_to_string(head->next, buf);
+}
+
+char* us_to_string(whiteboard* w){
+  char buf[32768];
+  strcpy(buf, "\n\033[44;1m   Users:                                                                                               \033[0m\n\n");
+  return here_all_users_to_string(w->usershead, buf);
+  
+}
+
+
+
 char* here_all_comments_to_string(topic* t, comment* head, char* buf, int* done, int subscribed){
   if(subscribed==0){
     printf("subscribed==0\n");
@@ -603,6 +638,7 @@ char* Auth(int shmidwb, int socket_desc, int mutex){
 
 
   char* username=(char*)malloc(32*sizeof(char));
+  MALLOC_ERROR_HELPER(username, "Malloc Error.");
   size_t b_len = 32;
   recv(socket_desc, username, b_len, 0);
   replace_char(username, '\n', '\0');
@@ -610,6 +646,7 @@ char* Auth(int shmidwb, int socket_desc, int mutex){
   send(socket_desc, s, 13, 0);
 
   char* password=(char*)malloc(32*sizeof(char));
+  MALLOC_ERROR_HELPER(password, "Malloc Error.");
   recv(socket_desc, password, b_len, 0);    // gestire gli errori di TUTTE le recv
   replace_char(password, '\n', '\0');
 
@@ -643,6 +680,7 @@ char* Register(int shmidwb, int socket_desc, int mutex){
 
 
   char* username=(char*)malloc(sizeof(char)*32);
+  MALLOC_ERROR_HELPER(username, "Malloc Error.");
   size_t b_len = 32;
   recv(socket_desc, username, b_len, 0);
   replace_char(username, '\n', '\0');
@@ -657,6 +695,7 @@ char* Register(int shmidwb, int socket_desc, int mutex){
   s="Password: \0";
   send(socket_desc, s, 13, 0);
   char* password=(char*)malloc(sizeof(char)*32);
+  MALLOC_ERROR_HELPER(password, "Malloc Error.");
   recv(socket_desc, password, b_len, 0);
   replace_char(password, '\n', '\0');
   //strncat(password, &end, 1);

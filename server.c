@@ -1,4 +1,4 @@
-#include "global.h"
+
 #include "whiteboard.h"
 
 ///////////////POSSIBILI ALTRI INCLUDE///////////////
@@ -22,17 +22,23 @@ int get_digit(char* buf, int i){    // i is the num's starting index
 void notify(int shmidwb, int socket_desc, char* current_user, int mutex){
   int ret, recv_bytes;
   char* buf=(char*)malloc(16*sizeof(char));
+  MALLOC_ERROR_HELPER(buf, "Malloc Error.");
   size_t buf_len = 16;
   char* resp=(char*)malloc(1024*sizeof(char));
+  MALLOC_ERROR_HELPER(resp, "Malloc Error.");
   size_t resp_len = 1024;
   recv(socket_desc, buf, buf_len, 0);
   int* to_notify=(int*)malloc(sizeof(int)*MAX_TOPICS);
+  MALLOC_ERROR_HELPER(to_notify, "Malloc Error.");
+
   memset(to_notify, -1, MAX_TOPICS*sizeof(int));
   
 
   ////////////// notify //////////////
   if (strncmp(buf, "notify",6) == 0) {
-    Pwait(mutex);
+    ret = Pwait(mutex);
+    ERROR_HELPER(ret, "Pwait Error");
+
     whiteboard* w = (whiteboard*) shmat(shmidwb, NULL, 0);
     w->topicshead = (topic*) shmat(w->shmidto, NULL, 0);
     w->usershead = (user*) shmat(w->shmidus, NULL, 0);
@@ -65,14 +71,18 @@ void notify(int shmidwb, int socket_desc, char* current_user, int mutex){
 
 
     free(to_notify);
+    free(buf);
     shmdt(w->usershead);
     shmdt(w->topicshead);
     shmdt(w);
-    Vpost(mutex);
+    ret = Vpost(mutex);
+    ERROR_HELPER(ret, "Vpost Error");
   }
   //printf("SENDING: %s\n",resp);   //DEBUG
 
   send(socket_desc, resp,strlen(resp),0);
+  free(resp);
+
 }
 
 
@@ -82,8 +92,11 @@ void app_loop(int shmidwb, int socket_desc, char* current_user, int mutex){
   int ret, recv_bytes;
   int current_tp_id=-1;
   char* buf=(char*)malloc(1024*sizeof(char));
+  MALLOC_ERROR_HELPER(buf, "Malloc Error.");
+
   size_t buf_len = 1024;
   char* resp=(char*)malloc(32768*sizeof(char));
+  MALLOC_ERROR_HELPER(resp, "Malloc Error.");
   size_t resp_len = 32768;
 
 
@@ -106,7 +119,8 @@ void app_loop(int shmidwb, int socket_desc, char* current_user, int mutex){
       }
       else{
         // printf("num: %d\n", number);
-        Pwait(mutex);
+        ret = Pwait(mutex);
+        ERROR_HELPER(ret, "Pwait Error");
         whiteboard* w = (whiteboard*) shmat(shmidwb, NULL, 0);
         w->topicshead = (topic*) shmat(w->shmidto, NULL, 0);
         w->usershead = (user*) shmat(w->shmidus, NULL, 0);
@@ -137,7 +151,8 @@ void app_loop(int shmidwb, int socket_desc, char* current_user, int mutex){
         shmdt(w->usershead);
         shmdt(w->topicshead);
         shmdt(w);
-        Vpost(mutex);
+        ret = Vpost(mutex);
+        ERROR_HELPER(ret, "Vpost Error");
       }
       printf("current_tp_id: %d\n",current_tp_id);    //DEBUG
       
@@ -145,7 +160,8 @@ void app_loop(int shmidwb, int socket_desc, char* current_user, int mutex){
     } 
     ////////// list topics //////////
     else if (strncmp(buf, "list topics",11) == 0) {
-      Pwait(mutex);
+      ret = Pwait(mutex);
+      ERROR_HELPER(ret, "Pwait Error");
       whiteboard* w = (whiteboard*) shmat(shmidwb, NULL, 0);
       w->topicshead = (topic*) shmat(w->shmidto, NULL, 0);
       
@@ -157,7 +173,8 @@ void app_loop(int shmidwb, int socket_desc, char* current_user, int mutex){
       
       shmdt(w->topicshead);
       shmdt(w);
-      Vpost(mutex);
+      ret = Vpost(mutex);
+      ERROR_HELPER(ret, "Vpost Error");
       // printf("%s\n", resp);   //DEBUG
     } 
     ////////// status comment //////////
@@ -167,7 +184,8 @@ void app_loop(int shmidwb, int socket_desc, char* current_user, int mutex){
         strcpy(resp, "\033[41;1m   Invalid comment                                                                                      \033[0m\0");
       }
       else{
-        Pwait(mutex);
+        ret = Pwait(mutex);
+        ERROR_HELPER(ret, "Pwait Error");
         whiteboard* w = (whiteboard*) shmat(shmidwb, NULL, 0);
         w->topicshead = (topic*) shmat(w->shmidto, NULL, 0);
         w->usershead = (user*) shmat(w->shmidus, NULL, 0);
@@ -203,9 +221,100 @@ void app_loop(int shmidwb, int socket_desc, char* current_user, int mutex){
         shmdt(w->usershead);
         shmdt(w->topicshead);
         shmdt(w);
-        Vpost(mutex);
+        ret = Vpost(mutex);
+        ERROR_HELPER(ret, "Vpost Error");
       }
-    } 
+    }/*
+    ////////// append [thread#] [topic#] //////////
+    else if (strncmp(buf, "append ",7) == 0) {
+      printf("1\n");
+      if(current_tp_id==-1){
+        strcpy(resp, "\033[41;1m   At first you have to choose a topic.      (usage: topic [topic#])                                    \033[0m\0");
+      }
+      else {
+        int nto, nth=get_digit(buf, 7);
+        printf("%d\n",nth);
+        if(nth>9){
+          if(nth>99) nto=get_digit(buf, 11);
+          else nto=get_digit(buf, 10);
+        }
+        else{
+          nto=get_digit(buf, 9);
+          printf("%d\n",nto);
+        }
+        printf("%d",nth);
+        if(nto==-1 || nth==-1){
+          strcpy(resp, "\033[41;1m   Invalid arguments                                                                                    \033[0m\0");
+        }
+        else{
+          
+          ret = Pwait(mutex);
+          ERROR_HELPER(ret, "Pwait Error");
+          whiteboard* w = (whiteboard*) shmat(shmidwb, NULL, 0);
+          w->topicshead = (topic*) shmat(w->shmidto, NULL, 0);
+          w->usershead = (user*) shmat(w->shmidus, NULL, 0);
+
+
+
+          topic* to=get_topic(w, nto);
+          topic* from=get_topic(w, current_tp_id);
+          
+          from->commentshead = (comment*) shmat(from->shmidcm, NULL, 0);
+          to->commentshead = (comment*) shmat(to->shmidcm, NULL, 0);
+          comment* th=get_comment(from, nth);
+          int cuid= get_user_by_usname(w, current_user)->id;
+
+
+          if(!int_in_arr(from->subscribers, cuid) || !int_in_arr(to->subscribers, cuid)){
+              strcpy(resp, "\033[41;1m   You should subscribe to topics first.      (usage: subscribe)                                        \033[0m\0");
+          }
+          else{
+            if(to==NULL || th==NULL) strcpy(resp, "\033[41;1m   Invalid topic or thread                                                                              \033[0m\0");
+            else{
+
+              if(th->in_reply_to!=-1) strcpy(resp, "\033[41;1m   Invalid thread                                                                                       \033[0m\0");
+              else{
+                
+                char* content=(char*)malloc(1024*sizeof(char));
+                MALLOC_ERROR_HELPER(content, "Malloc Error.");
+
+                strcpy(content, "\033[33;1mFROM TOPIC ");
+                int len=strlen(content);
+                len+=sprintf (content+len,"%d\033[0m - ",from->id);
+                len+=sprintf (content+len,"%s",th->comm);
+                content[1023]='\0';
+
+                comment* last=get_last_comment(to);
+                comment* c=new_comment(last->id+1, "th->author", 0, "content",-1);
+                memset(to->viewers, -1, MAX_REPLIES*sizeof(int));    //clear viewers
+
+                push_comment(to,th);
+                
+                add_viewer(to,cuid);
+                add_all_seen(to->commentshead,cuid);
+                check_all_seen_by_all(to->subscribers, to->commentshead);
+                free(content);
+
+
+                strcpy(resp, "\033[42;1m   Thread appended successfully!                                                                        \033[0m\0");
+              }
+
+            }
+
+            
+            
+          }
+          shmdt(to->commentshead);
+          shmdt(from->commentshead);
+          
+          shmdt(w->usershead);
+          shmdt(w->topicshead);
+          shmdt(w);
+          ret = Vpost(mutex);
+          ERROR_HELPER(ret, "Vpost Error");
+        }
+      }
+    }*/ //DEBUG
     ////////// reply to comment //////////
     else if (strncmp(buf, "reply ",6) == 0) {
       if(current_tp_id!=-1){
@@ -219,7 +328,8 @@ void app_loop(int shmidwb, int socket_desc, char* current_user, int mutex){
           recv(socket_desc, buf, buf_len, 0);
         }
         else{
-          Pwait(mutex);
+          ret = Pwait(mutex);
+          ERROR_HELPER(ret, "Pwait Error");
           whiteboard* w = (whiteboard*) shmat(shmidwb, NULL, 0);
           w->topicshead = (topic*) shmat(w->shmidto, NULL, 0);
           w->usershead = (user*) shmat(w->shmidus, NULL, 0);
@@ -241,13 +351,17 @@ void app_loop(int shmidwb, int socket_desc, char* current_user, int mutex){
             comment* r=get_comment(t,number);    // check if number (reply_id) exists
             if(!(r==NULL)){
               // release semaphore while waiting for user input
-              Vpost(mutex);
+              ret = Vpost(mutex);
+              ERROR_HELPER(ret, "Vpost Error");
               char* content=(char*)malloc(1024*sizeof(char));
+              MALLOC_ERROR_HELPER(content, "Malloc Error.");
+
 
               send(socket_desc, "content\0",9,0);
 
               recv(socket_desc, content, 1024, 0);
-              Pwait(mutex);
+              ret = Pwait(mutex);
+              ERROR_HELPER(ret, "Pwait Error");
 
 
 
@@ -283,7 +397,8 @@ void app_loop(int shmidwb, int socket_desc, char* current_user, int mutex){
           shmdt(w->usershead);
           shmdt(w->topicshead);
           shmdt(w);
-          Vpost(mutex);
+          ret = Vpost(mutex);
+          ERROR_HELPER(ret, "Vpost Error");
         }
       }
       else{
@@ -297,7 +412,9 @@ void app_loop(int shmidwb, int socket_desc, char* current_user, int mutex){
     ////////// create topic //////////
     else if (strncmp(buf, "create topic",12) == 0) {
       char* title=(char*)malloc(256*sizeof(char));
+      MALLOC_ERROR_HELPER(title, "Malloc Error.");
       char* content=(char*)malloc(1024*sizeof(char));
+      MALLOC_ERROR_HELPER(content, "Malloc Error.");
 
       send(socket_desc, "title\0",7,0);
 
@@ -307,7 +424,8 @@ void app_loop(int shmidwb, int socket_desc, char* current_user, int mutex){
 
       recv(socket_desc, content, 1024, 0);
 
-      Pwait(mutex);
+      ret = Pwait(mutex);
+      ERROR_HELPER(ret, "Pwait Error");
       whiteboard* w = (whiteboard*) shmat(shmidwb, NULL, 0);
       w->topicshead = (topic*) shmat(w->shmidto, NULL, 0);
       w->usershead = (user*) shmat(w->shmidus, NULL, 0);
@@ -333,7 +451,8 @@ void app_loop(int shmidwb, int socket_desc, char* current_user, int mutex){
       shmdt(w->usershead);
       shmdt(w->topicshead);
       shmdt(w);
-      Vpost(mutex);
+      ret = Vpost(mutex);
+      ERROR_HELPER(ret, "Vpost Error");
 
 
       free(content);
@@ -343,8 +462,8 @@ void app_loop(int shmidwb, int socket_desc, char* current_user, int mutex){
       strcat(resp, "\0");
 
     } 
-    ////////// add comment //////////
-    else if (strncmp(buf, "add comment",11) == 0) {
+    ////////// add thread //////////
+    else if (strncmp(buf, "add thread",10) == 0) {
       if(current_tp_id!=-1){
         
         whiteboard* w = (whiteboard*) shmat(shmidwb, NULL, 0);
@@ -364,14 +483,17 @@ void app_loop(int shmidwb, int socket_desc, char* current_user, int mutex){
         }
         else{
           // release semaphore while waiting for user input
-          Vpost(mutex);
+          ret = Vpost(mutex);
+          ERROR_HELPER(ret, "Vpost Error");
 
           char* content=(char*)malloc(1024*sizeof(char));
+          MALLOC_ERROR_HELPER(content, "Malloc Error.");
 
           send(socket_desc, "content\0",9,0);
 
           recv(socket_desc, content, 1024, 0);
-          Pwait(mutex);
+          ret = Pwait(mutex);
+          ERROR_HELPER(ret, "Pwait Error");
 
           time_t date;
           time(&date);
@@ -391,7 +513,8 @@ void app_loop(int shmidwb, int socket_desc, char* current_user, int mutex){
         shmdt(w->usershead);
         shmdt(w->topicshead);
         shmdt(w);
-        Vpost(mutex);
+        ret = Vpost(mutex);
+        ERROR_HELPER(ret, "Vpost Error");
 
 
       }
@@ -407,7 +530,8 @@ void app_loop(int shmidwb, int socket_desc, char* current_user, int mutex){
     ////////// subscribe to topic //////////
     else if (strncmp(buf, "subscribe",9) == 0) {
       if(current_tp_id!=-1){
-        Pwait(mutex);
+        ret = Pwait(mutex);
+        ERROR_HELPER(ret, "Pwait Error");
         whiteboard* w = (whiteboard*) shmat(shmidwb, NULL, 0);
         w->topicshead = (topic*) shmat(w->shmidto, NULL, 0);
         w->usershead = (user*) shmat(w->shmidus, NULL, 0);
@@ -443,7 +567,8 @@ void app_loop(int shmidwb, int socket_desc, char* current_user, int mutex){
         shmdt(w->usershead);
         shmdt(w->topicshead);
         shmdt(w);
-        Vpost(mutex);
+        ret = Vpost(mutex);
+        ERROR_HELPER(ret, "Vpost Error");
       }
       else strcpy(resp, "\033[41;1m   At first you have to choose a topic.      (usage: topic [topic#])                                    \033[0m\0");
     } 
@@ -454,30 +579,74 @@ void app_loop(int shmidwb, int socket_desc, char* current_user, int mutex){
       //printf("%d\n",number);    //DEBUG
       if(number==-1) strcpy(resp, "I don't understand which topic I should delete.\0");
       else{
-        Pwait(mutex);
+        ret = Pwait(mutex);
+        ERROR_HELPER(ret, "Pwait Error");
         whiteboard* w = (whiteboard*) shmat(shmidwb, NULL, 0);
         w->topicshead = (topic*) shmat(w->shmidto, NULL, 0);
 
         topic* t= get_topic(w,number);
         if(!(t==NULL)){
-          
-          char cu[32];                //DEBUG       FAI ATTENZIONE AL '\n' NELL'USNAME
-          strcpy(cu, current_user);   //DEBUG       quindi forse devi togliere tutto
-          cu[strlen(cu)-1]='\0';      //DEBUG       anche questo
-          //printf("%s--%s\n",t->author,cu);    //DEBUG
-          if(!strcmp(t->author,cu)){
+          if(!strcmp(t->author,current_user)){
             delete_topic(w, number);
-            strcpy(resp, "\033[42;1m   Deleted successfully.                                                                                 \033[0m\0");
+            strcpy(resp, "\033[42;1m   Deleted successfully.                                                                                \033[0m\0");
           }
-          else strcpy(resp, "\033[41;1m   Only topic's author can delete it.                                                                                \033[0m\0");
+          else strcpy(resp, "\033[41;1m   Only topic's author can delete it.                                                                   \033[0m\0");
         }
-        else strcpy(resp, "\033[41;1m   This topic does not exist.                                                                              \033[0m\0");
+        else strcpy(resp, "\033[41;1m   This topic does not exist.                                                                           \033[0m\0");
 
         shmdt(w->topicshead);
         shmdt(w);
-        Vpost(mutex);
+        ret = Vpost(mutex);
+        ERROR_HELPER(ret, "Vpost Error");
       }
       
+    }
+    ////////// ADMIN: list users //////////
+    else if(!strcmp(buf, "list users")){
+      if(strcmp(current_user,"admin")){
+      strcpy(resp, "\033[41;1m   You are not allowed to perform this action.                                                          \033[0m\0");
+      }
+      else{
+        ret = Pwait(mutex);
+        ERROR_HELPER(ret, "Pwait Error");
+        whiteboard* w = (whiteboard*) shmat(shmidwb, NULL, 0);
+        w->usershead = (user*) shmat(w->shmidus, NULL, 0);
+
+        strcpy(resp, us_to_string(w));
+        strcat(resp, "\0");
+
+        shmdt(w->usershead);
+        shmdt(w);
+        ret = Vpost(mutex);
+        ERROR_HELPER(ret, "Vpost Error");
+      }
+    }
+    ////////// ADMIN: delete user //////////
+    else if(!strncmp(buf, "delete user ",12)){
+      int userid=get_digit(buf, 12);
+      //printf("%d\n",number);    //DEBUG
+      if(userid==-1) strcpy(resp, "I don't understand which user I should delete.\0");
+      else{
+        if(strcmp(current_user,"admin")){
+          strcpy(resp, "\033[41;1m   You are not allowed to perform this action.                                                          \033[0m\0");
+        }
+        else if(userid==0) strcpy(resp, "\033[41;1m   This user cannot be deleted.                                                                         \033[0m\0");
+        else{
+          ret = Pwait(mutex);
+          ERROR_HELPER(ret, "Pwait Error");
+          whiteboard* w = (whiteboard*) shmat(shmidwb, NULL, 0);
+          w->usershead = (user*) shmat(w->shmidus, NULL, 0);
+
+          delete_user(w,userid);
+          strcpy(resp, us_to_string(w));
+          strcat(resp, "\0");
+
+          shmdt(w->usershead);
+          shmdt(w);
+          ret = Vpost(mutex);
+          ERROR_HELPER(ret, "Vpost Error");
+        }
+      }
     }
     ////////// quit //////////
     else if (strncmp(buf, "quit",4) == 0) {
@@ -511,6 +680,7 @@ void* connection_handler(int shmidwb, int socket_desc, struct sockaddr_in* clien
     char* current_user=NULL;
 
     char* buf=(char*)malloc(1024*sizeof(char));
+    MALLOC_ERROR_HELPER(buf, "Malloc Error.");
     size_t buf_len = 1024;
 
     // parse client IP address and port
@@ -535,13 +705,10 @@ void* connection_handler(int shmidwb, int socket_desc, struct sockaddr_in* clien
         // printf("Username already taken.\n");     //DEBUG
         send(socket_desc, "Username already taken.\0",32, 0);
         // close socket
-        //printf("closing....\n");     // DEBUG
 	      ret = close(socket_desc);
 	      ERROR_HELPER(ret, "Cannot close socket for incoming connection");
 	      free(buf);
         free(client_addr); // do not forget to free this buffer!
-        //detach from shared memory
-        //shmdt(w);
         printf("all closed\n");     // DEBUG
         exit(1);
       }
@@ -559,10 +726,6 @@ void* connection_handler(int shmidwb, int socket_desc, struct sockaddr_in* clien
         send(socket_desc, "Invalid credentials.\0",32, 0);
         free(buf);
         free(client_addr); // do not forget to free this buffer!
-        //ret = close(socket_desc);
-      	//ERROR_HELPER(ret, "Cannot close socket for incoming connection");
-        //detach from shared memory
-        //shmdt(w);
         printf("all closed\n");     //DEBUG
         exit(1);
       }
@@ -571,21 +734,16 @@ void* connection_handler(int shmidwb, int socket_desc, struct sockaddr_in* clien
 
       char* resp = current_user;
       replace_char(resp, '\n', '\0');
-      //char end='\0';    //????
-      //strncat(resp, &end, 1);
   		send(socket_desc, resp, 32, 0);
 
       app_loop(shmidwb, socket_desc, current_user, mutex);
 
     }
 	// close socket
-  //printf("closing....\n");     // DEBUG
 	ret = close(socket_desc);
 	ERROR_HELPER(ret, "Cannot close socket for incoming connection");
 	free(buf);
   free(client_addr); // do not forget to free this buffer!
-  //detach from shared memory
-  //shmdt(w);
   printf("all closed\n");     // DEBUG
   exit(1);
 
@@ -604,6 +762,7 @@ int main(int argc, char* argv[]) {
     int mutex;
 
     if ((mutex = initsem (semkey)) < 0) {
+        perror("initsem");
         exit (1);
     }
 
@@ -667,18 +826,21 @@ int main(int argc, char* argv[]) {
         if (client_desc == -1 && errno == EINTR) continue; // check for interruption by signals
         ERROR_HELPER(client_desc, "Cannot open socket for incoming connection");
 
-        if (DEBUG) fprintf(stderr, "Incoming connection accepted...\n");
+        printf("Incoming connection accepted...\n");
 
         if ((processID = fork()) < 0) {
-            perror("fork() failed");
-            exit(1);
+            ERROR_HELPER(processID, "Fork error.");
         }
         else if (processID == 0){  /* If this is the child process */
 
             connection_handler(shmidwb, client_desc, client_addr,mutex);
 
         }
-        else client_addr = calloc(1, sizeof(struct sockaddr_in));
+        else {
+          client_addr = calloc(1, sizeof(struct sockaddr_in));
+          MALLOC_ERROR_HELPER(client_addr, "Calloc Error.");
+
+        }
     }
     exit(EXIT_SUCCESS); // this will never be executed
 }

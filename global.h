@@ -6,6 +6,8 @@
     } while(0)
 
 #define ERROR_HELPER(ret, msg)          GENERIC_ERROR_HELPER((ret < 0), errno, msg)
+#define MALLOC_ERROR_HELPER(ret, msg)          GENERIC_ERROR_HELPER((ret == NULL), errno, msg)
+
 
 
 #define COLOR_RESET  "\033[0m"
