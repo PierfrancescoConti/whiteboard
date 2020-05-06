@@ -51,6 +51,18 @@ comment* new_comment(int id, char* author, time_t timestamp, char* comm, int rep
   return c;
 }
 
+linkt* new_link(int id, int topic_id, int thread_id){
+  linkt* l = (linkt*) malloc(sizeof(linkt));
+  MALLOC_ERROR_HELPER(l, "Malloc Error.");
+  l->id=id;
+  l->topic_id=topic_id;
+  l->thread_id=thread_id;
+
+  return l;
+
+}
+
+
 topic* new_topic(int id, char* author, char* title, char* content, time_t timestamp){
   topic* t = (topic*) malloc(sizeof(topic));
   MALLOC_ERROR_HELPER(t, "Malloc Error.");
@@ -153,6 +165,21 @@ void append_comment(comment* head, comment* c){
 void push_comment(topic* t, comment* c){
   append_comment(t->commentshead, c);
 }
+
+
+void append_link(linkt* head, linkt* l){
+  if(head->next==NULL){
+    *(head+1)=*l;
+    // free(c);
+    head->next=head+1;
+  }
+  else return append_link(head->next, l);
+}
+
+void add_link(topic* t, linkt* l){
+  return append_link(t->linkshead, l);
+}
+
 
 void add_subscriber(topic* t, int userid){
   if(int_in_arr(t->subscribers,userid)) return;
@@ -606,6 +633,29 @@ char* cm_to_string(topic* t, comment* head, char* buf, int* done){
   return buf;
 }
 
+linkt* find_link(linkt* head, int id){
+  if(head->id == id) return head;
+  if (head->next==NULL) return NULL;
+  return find_link(head->next, id);
+}
+
+char* ln_to_string(whiteboard* w, topic* t, int id, char* buf){
+  linkt* l=find_link(t->linkshead, id);
+  if(l==NULL){
+    strcpy(buf, "\033[41;1m   Invalid link                                                                                         \033[0m\0");
+  }
+  else{
+    printf("%d\n",l->topic_id);   // DEBUG
+    topic* gt=get_topic(w,l->topic_id);
+    gt->commentshead = (comment*) shmat(gt->shmidcm, NULL, 0);
+    comment* gc=get_comment(gt,l->thread_id);
+    int done[MAX_COMMENTS];
+    memset(done, -1, MAX_COMMENTS*sizeof(int));
+    buf=cm_to_string(gt, gc, buf, done);
+    shmdt(t->commentshead);
+  }
+  return buf;
+}
 
 
 
@@ -704,7 +754,7 @@ char* Register(int shmidwb, int socket_desc, int mutex){
   
 
     // attach to shared memory
-  Pwait(mutex);
+  //Pwait(mutex);
   whiteboard* w = shmat(shmidwb, NULL, 0);
   w->usershead=(user*) shmat(w->shmidus, NULL, 0);
 
@@ -738,7 +788,7 @@ char* Register(int shmidwb, int socket_desc, int mutex){
   printf("Username already taken.\n");
   shmdt(w->usershead);
   shmdt(w);
-  Vpost(mutex);
+  //Vpost(mutex);
   //free(username);
   //free(password);
   return NULL;

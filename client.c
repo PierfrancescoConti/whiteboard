@@ -90,7 +90,7 @@ void client_loop(int socket_desc, char* current_user){
             printf("\033[0m");
 
         }
-        while(!(strcmp(choice,"help")==0 || strncmp(choice,"topic ",6)==0 || strcmp(choice,"list topics")==0 || strncmp(choice, "status ",7)==0 || strcmp(choice, "create topic") == 0 || strncmp(choice, "reply ",6) == 0 || strncmp(choice, "delete topic ",13) == 0 || strncmp(choice, "delete user ",12) == 0 || strcmp(choice, "subscribe") == 0 || strcmp(choice, "add thread") == 0 || strcmp(choice, "quit") == 0 || strcmp(choice, "list users") == 0));
+        while(!(strcmp(choice,"help")==0 || strncmp(choice, "link ",5) == 0 || strncmp(choice, "print link ",11) == 0 || strncmp(choice,"topic ",6)==0 || strcmp(choice,"list topics")==0 || strncmp(choice, "status ",7)==0 || strcmp(choice, "create topic") == 0 || strncmp(choice, "reply ",6) == 0 || strncmp(choice, "delete topic ",13) == 0 || strncmp(choice, "delete user ",12) == 0 || strcmp(choice, "subscribe") == 0 || strcmp(choice, "add thread") == 0 || strcmp(choice, "quit") == 0 || strcmp(choice, "list users") == 0));
         send(socket_desc, choice,strlen(choice),0);
         if (!strcmp(choice, "quit")) break;
         else if(!strcmp(choice, "create topic")){

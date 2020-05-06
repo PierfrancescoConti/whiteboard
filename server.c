@@ -119,8 +119,8 @@ void app_loop(int shmidwb, int socket_desc, char* current_user, int mutex){
       }
       else{
         // printf("num: %d\n", number);
-        ret = Pwait(mutex);
-        ERROR_HELPER(ret, "Pwait Error");
+        //ret = Pwait(mutex);
+        //ERROR_HELPER(ret, "Pwait Error");
         whiteboard* w = (whiteboard*) shmat(shmidwb, NULL, 0);
         w->topicshead = (topic*) shmat(w->shmidto, NULL, 0);
         w->usershead = (user*) shmat(w->shmidus, NULL, 0);
@@ -151,8 +151,8 @@ void app_loop(int shmidwb, int socket_desc, char* current_user, int mutex){
         shmdt(w->usershead);
         shmdt(w->topicshead);
         shmdt(w);
-        ret = Vpost(mutex);
-        ERROR_HELPER(ret, "Vpost Error");
+        //ret = Vpost(mutex);
+        //ERROR_HELPER(ret, "Vpost Error");
       }
       printf("current_tp_id: %d\n",current_tp_id);    //DEBUG
       
@@ -224,101 +224,143 @@ void app_loop(int shmidwb, int socket_desc, char* current_user, int mutex){
         ret = Vpost(mutex);
         ERROR_HELPER(ret, "Vpost Error");
       }
-    }/*
-    ////////// append [thread#] [topic#] //////////
-    else if (strncmp(buf, "append ",7) == 0) {
-      printf("1\n");
+    }
+    ////////// link [topic#] [thread#] //////////
+    else if (strncmp(buf, "link ",5) == 0) {
       if(current_tp_id==-1){
         strcpy(resp, "\033[41;1m   At first you have to choose a topic.      (usage: topic [topic#])                                    \033[0m\0");
       }
       else {
-        int nto, nth=get_digit(buf, 7);
-        printf("%d\n",nth);
-        if(nth>9){
-          if(nth>99) nto=get_digit(buf, 11);
-          else nto=get_digit(buf, 10);
+        int nth, nfrom=get_digit(buf, 5);
+        printf("From Topic#: %d\n",nfrom);  //DEBUG
+        if(nfrom>9){
+          if(nfrom>99) nth=get_digit(buf, 9);
+          else nth=get_digit(buf, 8);
         }
         else{
-          nto=get_digit(buf, 9);
-          printf("%d\n",nto);
+          nth=get_digit(buf, 7);
+          printf("Thread#: %d\n",nth);  //DEBUG
         }
         printf("%d",nth);
-        if(nto==-1 || nth==-1){
+        if(nfrom==-1 || nth==-1){
           strcpy(resp, "\033[41;1m   Invalid arguments                                                                                    \033[0m\0");
         }
         else{
           
-          ret = Pwait(mutex);
-          ERROR_HELPER(ret, "Pwait Error");
+          //ret = Pwait(mutex);
+          //ERROR_HELPER(ret, "Pwait Error");
           whiteboard* w = (whiteboard*) shmat(shmidwb, NULL, 0);
           w->topicshead = (topic*) shmat(w->shmidto, NULL, 0);
           w->usershead = (user*) shmat(w->shmidus, NULL, 0);
 
 
 
-          topic* to=get_topic(w, nto);
-          topic* from=get_topic(w, current_tp_id);
-          
-          from->commentshead = (comment*) shmat(from->shmidcm, NULL, 0);
-          to->commentshead = (comment*) shmat(to->shmidcm, NULL, 0);
-          comment* th=get_comment(from, nth);
-          int cuid= get_user_by_usname(w, current_user)->id;
-
-
-          if(!int_in_arr(from->subscribers, cuid) || !int_in_arr(to->subscribers, cuid)){
-              strcpy(resp, "\033[41;1m   You should subscribe to topics first.      (usage: subscribe)                                        \033[0m\0");
+          topic* to=get_topic(w, current_tp_id);
+          topic* from=get_topic(w, nfrom);
+          if(from==NULL){
+            strcpy(resp, "\033[41;1m   Invalid topic                                                                                        \033[0m\0");
           }
           else{
-            if(to==NULL || th==NULL) strcpy(resp, "\033[41;1m   Invalid topic or thread                                                                              \033[0m\0");
+          
+            from->commentshead = (comment*) shmat(from->shmidcm, NULL, 0);
+            comment* th=get_comment(from, nth);
+            if(th->in_reply_to!=-1){
+              strcpy(resp, "\033[41;1m   Invalid thread: this is a comment                                                                    \033[0m\0");
+              shmdt(from->commentshead);
+            }
             else{
-
-              if(th->in_reply_to!=-1) strcpy(resp, "\033[41;1m   Invalid thread                                                                                       \033[0m\0");
+              if(th==NULL){
+                shmdt(from->commentshead);
+                strcpy(resp, "\033[41;1m   Invalid thread                                                                                     \033[0m\0");
+              }
               else{
-                
-                char* content=(char*)malloc(1024*sizeof(char));
-                MALLOC_ERROR_HELPER(content, "Malloc Error.");
+                shmdt(from->commentshead);
+                to->commentshead = (comment*) shmat(to->shmidcm, NULL, 0);
 
-                strcpy(content, "\033[33;1mFROM TOPIC ");
-                int len=strlen(content);
-                len+=sprintf (content+len,"%d\033[0m - ",from->id);
-                len+=sprintf (content+len,"%s",th->comm);
-                content[1023]='\0';
-
-                comment* last=get_last_comment(to);
-                comment* c=new_comment(last->id+1, "th->author", 0, "content",-1);
-                memset(to->viewers, -1, MAX_REPLIES*sizeof(int));    //clear viewers
-
-                push_comment(to,th);
-                
-                add_viewer(to,cuid);
-                add_all_seen(to->commentshead,cuid);
-                check_all_seen_by_all(to->subscribers, to->commentshead);
-                free(content);
+                int cuid= get_user_by_usname(w, current_user)->id;
 
 
-                strcpy(resp, "\033[42;1m   Thread appended successfully!                                                                        \033[0m\0");
+                if(!int_in_arr(to->subscribers, cuid)){
+                  strcpy(resp, "\033[41;1m   You should subscribe to topic first.      (usage: subscribe)                                        \033[0m\0");
+                }
+                else{
+
+                  char* content=(char*)malloc(1024*sizeof(char));
+                  MALLOC_ERROR_HELPER(content, "Malloc Error.");
+
+                  sprintf(content, "\033[33;1mLINK TO THREAD %d FROM TOPIC %d.\033[0m", nth, nfrom);
+                  strcat(content,"\0");
+                  comment* last=get_last_comment(to);
+                  comment* c=new_comment(last->id+1, current_user, 0, content,-1);
+                  memset(to->viewers, -1, MAX_REPLIES*sizeof(int));    //clear viewers
+                  linkt* l=new_link(last->id+1, nfrom, nth);
+                  add_link(to,l);
+
+                  push_comment(to,c);
+
+                  add_viewer(to,cuid);
+                  add_all_seen(to->commentshead,cuid);
+                  check_all_seen_by_all(to->subscribers, to->commentshead);
+                  free(content);
+
+
+                  strcpy(resp, "\033[42;1m   Link added successfully!                                                                             \033[0m\0");
+                }
+
+
+
               }
 
             }
-
-            
-            
+            shmdt(to->commentshead);
+            //shmdt(from->commentshead);
           }
-          shmdt(to->commentshead);
-          shmdt(from->commentshead);
           
           shmdt(w->usershead);
           shmdt(w->topicshead);
           shmdt(w);
-          ret = Vpost(mutex);
-          ERROR_HELPER(ret, "Vpost Error");
+          //ret = Vpost(mutex);
+          //ERROR_HELPER(ret, "Vpost Error");
         }
       }
-    }*/ //DEBUG
+    }
+    ////////// print link [link#] //////////
+    else if (strncmp(buf, "print link ",11) == 0) {
+      if(current_tp_id==-1){
+        strcpy(resp, "\033[41;1m   At first you have to choose a topic.      (usage: topic [topic#])                                    \033[0m\0");
+      }
+      else {
+        int nl=get_digit(buf, 11);
+        if(nl==-1){
+          strcpy(resp, "\033[41;1m   Invalid link                                                                                         \033[0m\0");
+        }
+        else{
+          //ret = Pwait(mutex);
+          //ERROR_HELPER(ret, "Pwait Error");
+          whiteboard* w = (whiteboard*) shmat(shmidwb, NULL, 0);
+          w->topicshead = (topic*) shmat(w->shmidto, NULL, 0);
+          w->usershead = (user*) shmat(w->shmidus, NULL, 0);
+
+          char buf[32768];
+
+          
+          strcpy(resp, ln_to_string(w, get_topic(w,current_tp_id), nl, buf));
+          strcat(resp, "\0");
+           
+          memset(buf, 0, 32768);          // FLUSH
+
+          shmdt(w->usershead);
+          shmdt(w->topicshead);
+          shmdt(w);
+          //ret = Vpost(mutex);
+          //ERROR_HELPER(ret, "Vpost Error");
+        }
+        
+      }
+    }
     ////////// reply to comment //////////
     else if (strncmp(buf, "reply ",6) == 0) {
       if(current_tp_id!=-1){
-        //printf("aaa\n");      // DEBUG
 
         char d='a';
         int number=get_digit(buf, 6);

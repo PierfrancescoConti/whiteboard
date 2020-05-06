@@ -234,6 +234,58 @@ void client_loop(int socket_desc){
 
     printf("\n\n\n");
 
+    //choose topic//
+    printf("\n> \033[34;1mtopic 1\033[0m\n");
+    strcpy(choice,"topic 1\0");
+    send(socket_desc, choice,strlen(choice),0);
+    recv(socket_desc, buf, buf_len, 0);
+
+    printf("%s\n", buf);
+
+    memset(buf, 0, buf_len);          // FLUSH
+    memset(choice, 0, 32);          // FLUSH
+
+    printf("\n\n\n");
+
+    //link//
+    printf("\n> \033[34;1mlink 1 0\033[0m\n");
+    strcpy(choice,"link 0 0\0");
+    send(socket_desc, choice,strlen(choice),0);
+    recv(socket_desc, buf, buf_len, 0);
+
+    printf("%s\n", buf);
+
+    memset(buf, 0, buf_len);          // FLUSH
+    memset(choice, 0, 32);          // FLUSH
+
+    printf("\n\n\n");
+
+    //link//
+    printf("\n> \033[34;1mlink 99 99\033[0m\n");
+    strcpy(choice,"link 99 99\0");
+    send(socket_desc, choice,strlen(choice),0);
+    recv(socket_desc, buf, buf_len, 0);
+
+    printf("%s\n", buf);
+
+    memset(buf, 0, buf_len);          // FLUSH
+    memset(choice, 0, 32);          // FLUSH
+
+    printf("\n\n\n");
+
+    //choose topic//
+    printf("\n> \033[34;1mtopic 1\033[0m\n");
+    strcpy(choice,"topic 1\0");
+    send(socket_desc, choice,strlen(choice),0);
+    recv(socket_desc, buf, buf_len, 0);
+
+    printf("%s\n", buf);
+
+    memset(buf, 0, buf_len);          // FLUSH
+    memset(choice, 0, 32);          // FLUSH
+
+    printf("\n\n\n");
+
     //quit//
     printf("\n> \033[34;1mquit\033[0m\n");
     strcpy(choice,"quit\0");

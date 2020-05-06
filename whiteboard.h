@@ -22,6 +22,7 @@
 #define MAX_USERS 128
 #define MAX_TOPICS 128
 #define MAX_COMMENTS 128
+#define MAX_LINKS 128
 
 #define MAX_SUBSCRIBERS 128
 #define MAX_REPLIES 64
@@ -51,6 +52,7 @@
 //      - DONE: if create topic, then visualize it
 //      - check if user input blocks other's executions -> DONES: add comment, reply, create topic, Register, Auth
 //      - check ret value! for everything!
+//      - check semaphores for choose topic, register, link
 
 //      - DONE: to add comment, check if subscribed
 //      - DONE: choose topic: fai leggere il contenuto, perchè non lo stampa
@@ -91,6 +93,13 @@ typedef struct cm{
   struct cm* next;
 } comment;
 
+typedef struct ln{
+  int id;
+  int topic_id;
+  int thread_id;
+  struct ln* next;
+} linkt;
+
 typedef struct usr{
   int id;
   char username[32];
@@ -103,6 +112,7 @@ typedef struct tp{
   int shmidcm;
   time_t timestamp;
   comment* commentshead;
+  linkt linkshead[MAX_LINKS];
   char author[32];
   char title[256];
   char content[1024];
@@ -127,6 +137,7 @@ typedef struct wbadmin{
 // creation     //for each creation, I have to define it's shmat first and shmdt then
 whiteboard* create_wb(whiteboard* w);
 comment* new_comment(int id, char* author, time_t timestamp, char* comment, int reply_id);
+linkt* new_link(int id, int topic_id, int thread_id);
 topic* new_topic(int id, char* author, char* title, char* content, time_t timestamp);
 user* new_user(int id, char* username, char* password);
 subscribers_pool* new_entry_pool(int uid);
@@ -140,6 +151,9 @@ void add_user(whiteboard* w, user* u);
 
 void append_comment(comment* head, comment* c);
 void push_comment(topic* t, comment* c);    // whiteboard modified? -> update_topic
+
+void append_link(linkt* head, linkt* l);
+void add_link(topic* t, linkt* l);
 
 void add_subscriber(topic* t, int userid);
 void add_viewer(topic* t,int uid);
@@ -218,6 +232,9 @@ char* tp_to_string(topic* t, int subscribed);
 
 char* child_to_string(topic* t, comment* child, char* buf, int* done, int level);
 char* cm_to_string(topic* t, comment* head, char* buf, int* done);
+
+linkt* find_link(linkt* head, int id);
+char* ln_to_string(whiteboard* w, topic* t, int id, char* buf);
 
 
 
