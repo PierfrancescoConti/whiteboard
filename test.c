@@ -49,13 +49,17 @@ void print_menu(){      //help
     printf("--------------------------------------------------------------------------------------------------------\n");
     printf("-> \033[1;34msubscribe              \033[0m|-  You subscribe to the current topic and will receive a notification\n                          |   about changes.\n");
     printf("--------------------------------------------------------------------------------------------------------\n");
-    printf("-> \033[1;34madd thread            \033[0m|-  You can simply add a comment to a topic.\n");
+    printf("-> \033[1;34madd thread             \033[0m|-  You can simply add a comment to a topic.\n");
     printf("--------------------------------------------------------------------------------------------------------\n");
     printf("-> \033[1;34mreply [comment#]       \033[0m|-  You can write a comment as response to another comment.\n");
     printf("--------------------------------------------------------------------------------------------------------\n");
     printf("-> \033[1;34mget [comment#]         \033[0m|-  It shows all the info about the comment you decide inside\n                          |   the current topic.\n");
     printf("--------------------------------------------------------------------------------------------------------\n");
     printf("-> \033[1;34mstatus [comment#]      \033[0m|-  It shows the status of the comment you decide inside the current topic.\n");
+    printf("--------------------------------------------------------------------------------------------------------\n");
+    printf("-> \033[1;34mlink [topic#] [topic#] \033[0m|-  You can refer to a thread contained in another topic.\n");
+    printf("--------------------------------------------------------------------------------------------------------\n");
+    printf("-> \033[1;34mprint link [link#]     \033[0m|-  It loads the thread and its messages to which the link refers.\n");
     printf("--------------------------------------------------------------------------------------------------------\n");
     printf("-> \033[1;34mquit                   \033[0m|-  Well.... you quit.\n");
     printf("\n\033[1;44m                                                                                                        \033[0m\n\n");
@@ -318,7 +322,6 @@ void client_loop(int socket_desc){
 
 
 
-// TODO: rimpiazzare tutte le funzioni ad alto livello che non le vogliamo -> tipo fgets
 int main(int argc, char* argv[]) {
     char choice[32];
     int ret,recv_bytes=0;
@@ -383,8 +386,6 @@ int main(int argc, char* argv[]) {
     ERROR_HELPER(ret, "Could not create connection");
 
     printf("\n\033[42;1m   Connection established!                                                                              \033[0m\n\n");
-
-
 
     //AUTHENTICATE//
     printf("\n\033[44;1m   AUTHENTICATION   \033[0m\n");

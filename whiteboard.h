@@ -41,31 +41,26 @@
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // TODO:
-//      - edit each function to interact with shared memories - which shmid should each field have? which size?
-//      - free malloc after adding.
-//      - test.c (automated client that does things) -> at the end do more things and user_test name random (e.g. user_test75583)
-//      - userAdmin.c (external users' administrator)
-//      - check if MAX_SIZE is exceeded for each buffer -> if so, operation not permitted
-//      - implement delete topic
-//      - DONE: do SYSV semaphores in main for each function or before&after shmat&shmdt
-
-//      - DONE: if create topic, then visualize it
-//      - check if user input blocks other's executions -> DONES: add comment, reply, create topic, Register, Auth
 //      - check ret value! for everything!
-//      - check semaphores for choose topic, register, link
-
+//      - check semaphores for choose topic, register, link//      - DONE: edit each function to interact with shared memories - which shmid should each field have? which size?
+//      - check if MAX_SIZE is exceeded for each buffer -> if so, operation not permitted
+//
+//      - DONE: free malloc after adding.
+//      - DONE: test.c (automated client that does things) -> at the end do more things and user_test name random (e.g. user_test75583)
+//      - DONE: implement delete topic
+//      - DONE: do SYSV semaphores in main for each function or before&after shmat&shmdt
+//      - DONE: if create topic, then visualize it
+//      - DONE: check if user input blocks other's executions -> DONES: add thread, reply, create topic, Register, Auth
 //      - DONE: to add comment, check if subscribed
 //      - DONE: choose topic: fai leggere il contenuto, perchè non lo stampa
 //      - DONE: a subscribe, dopo stampa il topic a cui si è sottoscritto
 //      - DONE: notifica per ogni topic nella pool in cui il current_user non è contenuto in viewers
 //      - DONE: topic's viewers (lista di subscribers che hanno letto i commenti - riazzerarla ad ogni nuovo commento)
-//
 //      - DONE: subscribers pool (tabella utente|lista di topic a cui è sottoscritto)
 //                implementazione subscribers_pool: struct con campi *userid* e *lista_topics_id_subscribed* (e magari anche *next*)
-//
 //      - DONE: seen: altra lista di interi per ogni commento degli utenti che lo hanno visualizzato 
 //            (usando choose topic dopo essersi sottoscritti) al fine di dare un senso allo status del commento
-//      - during subscription CHECK if already subscribed
+//      - DONE: during subscription CHECK if already subscribed
 //      - DONE: se il post è mio, sono automaticamente un subscriber (e un viewer)
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -238,6 +233,7 @@ char* ln_to_string(whiteboard* w, topic* t, int id, char* buf);
 
 
 
+
 // authenticator
 int validate_user(whiteboard*w, char* us, char* pw);
 char* Auth(int shmidwb, int socket_desc, int mutex);
@@ -259,12 +255,6 @@ int* add_to_arr(int* arr, int i, int max_size);
 // checks
 int check_seen_by_all(int* subscribers, int* seen);   //can be generalized: check A subset of B
 void check_all_seen_by_all(int* subscribers, comment* head);
-
-
-
-
-
-
 
 
 
