@@ -20,14 +20,14 @@ int get_digit(char *buf, int i) { // i is the num's starting index
 }
 
 void notify(int shmidwb, int socket_desc, char *current_user, int mutex) {
-  int ret, recv_bytes;
+  int ret;
   char *buf = (char *)malloc(16 * sizeof(char));
   MALLOC_ERROR_HELPER(buf, "Malloc Error.");
   size_t buf_len = 16;
   char *resp = (char *)malloc(1024 * sizeof(char));
   MALLOC_ERROR_HELPER(resp, "Malloc Error.");
-  size_t resp_len = 1024;
-  recv(socket_desc, buf, buf_len, 0);
+  ret=recv(socket_desc, buf, buf_len, 0);
+  ERROR_HELPER(ret, "Recv Error");
   int *to_notify = (int *)malloc(sizeof(int) * MAX_TOPICS);
   MALLOC_ERROR_HELPER(to_notify, "Malloc Error.");
 
@@ -79,14 +79,15 @@ void notify(int shmidwb, int socket_desc, char *current_user, int mutex) {
   }
   // printf("SENDING: %s\n",resp);   //DEBUG
 
-  send(socket_desc, resp, strlen(resp), 0);
+  ret=send(socket_desc, resp, strlen(resp), 0);
+  ERROR_HELPER(ret, "Send Error");
   free(resp);
 }
 
 void app_loop(int shmidwb, int socket_desc, char *current_user, int mutex) {
   notify(shmidwb, socket_desc, current_user, mutex);
   printf("%s\n", current_user); // DEBUG
-  int ret, recv_bytes;
+  int ret;
   int current_tp_id = -1;
   char *buf = (char *)malloc(1024 * sizeof(char));
   MALLOC_ERROR_HELPER(buf, "Malloc Error.");
@@ -100,11 +101,9 @@ void app_loop(int shmidwb, int socket_desc, char *current_user, int mutex) {
     memset(buf, 0, buf_len);   // FLUSH
     memset(resp, 0, resp_len); // FLUSH
 
-    while ((recv(socket_desc, buf, buf_len, 0)) < 0) {
-      if (errno == EINTR)
-        continue;
-      ERROR_HELPER(-1, "Cannot read from socket");
-    }
+    ret=recv(socket_desc, buf, buf_len, 0);
+    ERROR_HELPER(ret, "Recv Error");
+
     //////////////////////////////////////////////////////////////////////
     //////////////////////////// choose topic ////////////////////////////
     if (strncmp(buf, "topic ", 6) == 0) {
@@ -114,12 +113,12 @@ void app_loop(int shmidwb, int socket_desc, char *current_user, int mutex) {
                "\033[41;1m   Invalid topic                                     "
                "                                                   \033[0m\0");
       } else {
-        // printf("num: %d\n", number);
         ret = Pwait(mutex);
         ERROR_HELPER(ret, "Pwait Error");
         whiteboard *w = (whiteboard *)shmat(shmidwb, NULL, 0);
         w->topicshead = (topic *)shmat(w->shmidto, NULL, 0);
         w->usershead = (user *)shmat(w->shmidus, NULL, 0);
+        
 
         topic *t = get_topic(w, number);
 
@@ -358,15 +357,16 @@ void app_loop(int shmidwb, int socket_desc, char *current_user, int mutex) {
     else if (strncmp(buf, "reply ", 6) == 0) {
       if (current_tp_id != -1) {
 
-        char d = 'a';
         int number = get_digit(buf, 6);
         if (number == -1) {
           strcpy(
               resp,
               "\033[41;1m   Invalid comment                                    "
               "                                                  \033[0m\0");
-          send(socket_desc, resp, strlen(resp), 0);
-          recv(socket_desc, buf, buf_len, 0);
+          ret=send(socket_desc, resp, strlen(resp), 0);
+          ERROR_HELPER(ret, "Send Error");
+          ret=recv(socket_desc, buf, buf_len, 0);
+          ERROR_HELPER(ret, "Recv Error");
         } else {
           ret = Pwait(mutex);
           ERROR_HELPER(ret, "Pwait Error");
@@ -378,8 +378,10 @@ void app_loop(int shmidwb, int socket_desc, char *current_user, int mutex) {
           int cuid = get_user_by_usname(w, current_user)->id;
 
           if (!int_in_arr(t->subscribers, cuid)) {
-            send(socket_desc, "subfirst\0", 10, 0);
-            recv(socket_desc, resp, 1024, 0);
+            ret=send(socket_desc, "subfirst\0", 10, 0);
+            ERROR_HELPER(ret, "Send Error");
+            ret=recv(socket_desc, resp, 1024, 0);
+            ERROR_HELPER(ret, "Recv Error");
             strcpy(resp, "\033[41;1m   You should subscribe first.      "
                          "(usage: subscribe)                                   "
                          "               \033[0m\0");
@@ -395,9 +397,11 @@ void app_loop(int shmidwb, int socket_desc, char *current_user, int mutex) {
               char *content = (char *)malloc(1024 * sizeof(char));
               MALLOC_ERROR_HELPER(content, "Malloc Error.");
 
-              send(socket_desc, "content\0", 9, 0);
+              ret=send(socket_desc, "content\0", 9, 0);
+              ERROR_HELPER(ret, "Send Error");
 
-              recv(socket_desc, content, 1024, 0);
+              ret=recv(socket_desc, content, 1024, 0);
+              ERROR_HELPER(ret, "Recv Error");
               ret = Pwait(mutex);
               ERROR_HELPER(ret, "Pwait Error");
 
@@ -423,8 +427,10 @@ void app_loop(int shmidwb, int socket_desc, char *current_user, int mutex) {
               strcpy(resp, "\033[41;1m   Invalid comment                       "
                            "                                                   "
                            "            \033[0m\0");
-              send(socket_desc, resp, strlen(resp), 0);
-              recv(socket_desc, buf, buf_len, 0);
+              ret=send(socket_desc, resp, strlen(resp), 0);
+              ERROR_HELPER(ret, "Send Error");
+              ret=recv(socket_desc, buf, buf_len, 0);
+              ERROR_HELPER(ret, "Recv Error");
             }
             shmdt(t->commentshead);
           }
@@ -438,8 +444,10 @@ void app_loop(int shmidwb, int socket_desc, char *current_user, int mutex) {
         strcpy(resp,
                "\033[41;1m   At first you have to choose a topic.      (usage: "
                "topic [topic#])                                    \033[0m\0");
-        send(socket_desc, resp, strlen(resp), 0);
-        recv(socket_desc, buf, buf_len, 0);
+        ret=send(socket_desc, resp, strlen(resp), 0);
+        ERROR_HELPER(ret, "Send Error");
+        ret=recv(socket_desc, buf, buf_len, 0);
+        ERROR_HELPER(ret, "Recv Error");
       }
     }
     //////////////////////////////////////////////////////////////////////
@@ -450,13 +458,17 @@ void app_loop(int shmidwb, int socket_desc, char *current_user, int mutex) {
       char *content = (char *)malloc(1024 * sizeof(char));
       MALLOC_ERROR_HELPER(content, "Malloc Error.");
 
-      send(socket_desc, "title\0", 7, 0);
+      ret=send(socket_desc, "title\0", 7, 0);
+      ERROR_HELPER(ret, "Send Error");
 
-      recv(socket_desc, title, 256, 0);
+      ret=recv(socket_desc, title, 256, 0);
+      ERROR_HELPER(ret, "Recv Error");
 
-      send(socket_desc, "content\0", 9, 0);
+      ret=send(socket_desc, "content\0", 9, 0);
+      ERROR_HELPER(ret, "Send Error");
 
-      recv(socket_desc, content, 1024, 0);
+      ret=recv(socket_desc, content, 1024, 0);
+      ERROR_HELPER(ret, "Recv Error");
 
       ret = Pwait(mutex);
       ERROR_HELPER(ret, "Pwait Error");
@@ -499,6 +511,8 @@ void app_loop(int shmidwb, int socket_desc, char *current_user, int mutex) {
     //////////////////////////// add thread ////////////////////////////
     else if (strncmp(buf, "add thread", 10) == 0) {
       if (current_tp_id != -1) {
+        ret = Pwait(mutex);
+        ERROR_HELPER(ret, "Pwait Error");
 
         whiteboard *w = (whiteboard *)shmat(shmidwb, NULL, 0);
         w->topicshead = (topic *)shmat(w->shmidto, NULL, 0);
@@ -510,8 +524,10 @@ void app_loop(int shmidwb, int socket_desc, char *current_user, int mutex) {
         int cuid = get_user_by_usname(w, current_user)->id;
 
         if (!int_in_arr(t->subscribers, cuid)) {
-          send(socket_desc, "subfirst\0", 10, 0);
-          recv(socket_desc, resp, 1024, 0);
+          ret=send(socket_desc, "subfirst\0", 10, 0);
+          ERROR_HELPER(ret, "Send Error");
+          ret=recv(socket_desc, resp, 1024, 0);
+          ERROR_HELPER(ret, "Recv Error");
           strcpy(resp, "\033[41;1m   You should subscribe first.      (usage: "
                        "subscribe)                                             "
                        "     \033[0m\0");
@@ -523,9 +539,11 @@ void app_loop(int shmidwb, int socket_desc, char *current_user, int mutex) {
           char *content = (char *)malloc(1024 * sizeof(char));
           MALLOC_ERROR_HELPER(content, "Malloc Error.");
 
-          send(socket_desc, "content\0", 9, 0);
+          ret=send(socket_desc, "content\0", 9, 0);
+          ERROR_HELPER(ret, "Send Error");
 
-          recv(socket_desc, content, 1024, 0);
+          ret=recv(socket_desc, content, 1024, 0);
+          ERROR_HELPER(ret, "Recv Error");
           ret = Pwait(mutex);
           ERROR_HELPER(ret, "Pwait Error");
 
@@ -558,8 +576,10 @@ void app_loop(int shmidwb, int socket_desc, char *current_user, int mutex) {
                "\033[41;1m   At first you have to choose a topic.      (usage: "
                "topic [topic#])                                    \033[0m\0");
 
-        send(socket_desc, resp, strlen(resp), 0);
-        recv(socket_desc, buf, buf_len, 0);
+        ret=send(socket_desc, resp, strlen(resp), 0);
+        ERROR_HELPER(ret, "Send Error");
+        ret=recv(socket_desc, buf, buf_len, 0);
+        ERROR_HELPER(ret, "Recv Error");
       }
     }
     ////////////////////////////////////////////////////////////////////////////
@@ -720,7 +740,8 @@ void app_loop(int shmidwb, int socket_desc, char *current_user, int mutex) {
       strcpy(resp, "help\0");
     }
 
-    send(socket_desc, resp, strlen(resp), 0);
+    ret=send(socket_desc, resp, strlen(resp), 0);
+    ERROR_HELPER(ret, "Send Error");
   }
   // printf("free\n");     //DEBUG
 
@@ -736,7 +757,7 @@ void app_loop(int shmidwb, int socket_desc, char *current_user, int mutex) {
 void *connection_handler(int shmidwb, int socket_desc,
                          struct sockaddr_in *client_addr, int mutex) {
 
-  int ret, recv_bytes;
+  int ret;
 
   char *current_user = NULL;
 
@@ -748,11 +769,9 @@ void *connection_handler(int shmidwb, int socket_desc,
   char client_ip[INET_ADDRSTRLEN];
   inet_ntop(AF_INET, &(client_addr->sin_addr), client_ip, INET_ADDRSTRLEN);
   // read message from client
-  while ((recv_bytes = recv(socket_desc, buf, buf_len, 0)) < 0) {
-    if (errno == EINTR)
-      continue;
-    ERROR_HELPER(-1, "Cannot read from socket");
-  }
+  ret=recv(socket_desc, buf, buf_len, 0);
+  ERROR_HELPER(ret, "Recv Error");
+
 
   printf("Command: %s\n", buf); // DEBUG
 
@@ -766,7 +785,8 @@ void *connection_handler(int shmidwb, int socket_desc,
       if (resp != NULL)
         break;
       // printf("Username already taken.\n");     //DEBUG
-      send(socket_desc, "Username already taken.\0", 32, 0);
+      ret=send(socket_desc, "Username already taken.\0", 32, 0);
+      ERROR_HELPER(ret, "Send Error");
       // close socket
       ret = close(socket_desc);
       ERROR_HELPER(ret, "Cannot close socket for incoming connection");
@@ -777,7 +797,8 @@ void *connection_handler(int shmidwb, int socket_desc,
     }
     // printf("out\n");     //DEBUG
     strcpy(resp, "Registration Done.\0");
-    send(socket_desc, resp, 32, 0);
+    ret=send(socket_desc, resp, 32, 0);
+    ERROR_HELPER(ret, "Send Error");
   }
   //////////////////////////////////////////////////////////////////
   ///////////////////////////////AUTH///////////////////////////////
@@ -786,7 +807,8 @@ void *connection_handler(int shmidwb, int socket_desc,
     current_user = Auth(shmidwb, socket_desc, mutex);
     if (current_user == NULL) {
       // printf("Invalid credentials.\n");     //DEBUG
-      send(socket_desc, "Invalid credentials.\0", 32, 0);
+      ret=send(socket_desc, "Invalid credentials.\0", 32, 0);
+      ERROR_HELPER(ret, "Send Error");
       free(buf);
       free(client_addr);      // do not forget to free this buffer!
       printf("all closed\n"); // DEBUG
@@ -796,7 +818,8 @@ void *connection_handler(int shmidwb, int socket_desc,
 
     char *resp = current_user;
     replace_char(resp, '\n', '\0');
-    send(socket_desc, resp, 32, 0);
+    ret=send(socket_desc, resp, 32, 0);
+    ERROR_HELPER(ret, "Send Error");
 
     app_loop(shmidwb, socket_desc, current_user, mutex);
   }
@@ -817,13 +840,16 @@ int main(int argc, char *argv[]) {
   int socket_desc, client_desc;
 
   // semaphore
-  key_t semkey = 0x200;
+  key_t semkey = IPC_PRIVATE;
   int mutex;
+
+  semclean(semkey);
 
   if ((mutex = initsem(semkey)) < 0) {
     perror("initsem");
     exit(1);
   }
+
 
   // shared memory
   int shmidwb;
@@ -893,5 +919,6 @@ int main(int argc, char *argv[]) {
       MALLOC_ERROR_HELPER(client_addr, "Calloc Error.");
     }
   }
+  semctl(mutex, 0, IPC_RMID); // this will never be executed
   exit(EXIT_SUCCESS); // this will never be executed
 }

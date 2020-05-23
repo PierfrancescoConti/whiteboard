@@ -4,15 +4,15 @@ all: clean client server test
 
 
 test:
-	$(CC) -o test test.c global.h -Wno-unused-variable
+	$(CC) -o test test.c global.h 
 
 
 client:
-	$(CC) -o client client.c global.h -Wno-unused-variable
+	$(CC) -o client client.c global.h 
 
 
 server:
-	$(CC) -o server server.c global.h whiteboard.h whiteboard.c -Wno-unused-variable
+	$(CC) -o server server.c global.h whiteboard.h whiteboard.c 
 
 .PHONY: clean
 

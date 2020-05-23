@@ -77,8 +77,10 @@ void client_loop(int socket_desc, char *current_user) {
 
   char choice[32];
   strcpy(choice, "notify\0");
-  send(socket_desc, choice, strlen(choice), 0);
-  recv(socket_desc, buf, buf_len, 0);
+  int ret = send(socket_desc, choice, strlen(choice), 0);
+  ERROR_HELPER(ret, "Send Error");
+  ret=recv(socket_desc, buf, buf_len, 0);
+  ERROR_HELPER(ret, "Recv Error");
   print_logo();
   printf("%s\n", buf);
 
@@ -107,11 +109,13 @@ void client_loop(int socket_desc, char *current_user) {
         strncmp(choice, "delete user ", 12) == 0 ||
         strcmp(choice, "subscribe") == 0 || strcmp(choice, "add thread") == 0 ||
         strcmp(choice, "quit") == 0 || strcmp(choice, "list users") == 0));
-    send(socket_desc, choice, strlen(choice), 0);
+    ret = send(socket_desc, choice, strlen(choice), 0);
+    ERROR_HELPER(ret, "Send Error");
     if (!strcmp(choice, "quit"))
       break;
     else if (!strcmp(choice, "create topic")) {
-      recv(socket_desc, buf, buf_len, 0);
+      ret=recv(socket_desc, buf, buf_len, 0);
+      ERROR_HELPER(ret, "Recv Error");
       if (strncmp(buf, "title", 5)) {
         printf("errore in create topic (title)");
       }
@@ -123,9 +127,11 @@ void client_loop(int socket_desc, char *current_user) {
         exit(EXIT_FAILURE);
       }
       buf[255] = '\0';
-      send(socket_desc, buf, 256, 0);
+      ret = send(socket_desc, buf, 256, 0);
+      ERROR_HELPER(ret, "Send Error");
 
-      recv(socket_desc, buf, buf_len, 0);
+      ret=recv(socket_desc, buf, buf_len, 0);
+      ERROR_HELPER(ret, "Recv Error");
       if (strncmp(buf, "content", 7)) {
         printf("errore in create topic (content)");
       }
@@ -136,12 +142,15 @@ void client_loop(int socket_desc, char *current_user) {
         exit(EXIT_FAILURE);
       }
       buf[1023] = '\0';
-      send(socket_desc, buf, 1024, 0);
+      ret = send(socket_desc, buf, 1024, 0);
+      ERROR_HELPER(ret, "Send Error");
 
     } else if (!strcmp(choice, "add thread")) {
-      recv(socket_desc, buf, buf_len, 0);
+      ret=recv(socket_desc, buf, buf_len, 0);
+      ERROR_HELPER(ret, "Recv Error");
       if (strncmp(buf, "content", 7)) {
-        send(socket_desc, "NO\0", 3, 0);
+        ret = send(socket_desc, "NO\0", 3, 0);
+        ERROR_HELPER(ret, "Send Error");
         printf("You cannot add a comment to this topic.");
       } else {
         printf("\n\033[107;1m\033[30;1mInsert here the Comment to the current "
@@ -152,13 +161,16 @@ void client_loop(int socket_desc, char *current_user) {
           exit(EXIT_FAILURE);
         }
         buf[1023] = '\0';
-        send(socket_desc, buf, 1024, 0);
+        ret=send(socket_desc, buf, 1024, 0);
+        ERROR_HELPER(ret, "Send Error");
       }
 
     } else if (!strncmp(choice, "reply ", 6)) {
-      recv(socket_desc, buf, buf_len, 0);
+      ret=recv(socket_desc, buf, buf_len, 0);
+      ERROR_HELPER(ret, "Recv Error");
       if (strncmp(buf, "content", 7)) {
-        send(socket_desc, "NO\0", 3, 0);
+        ret=send(socket_desc, "NO\0", 3, 0);
+        ERROR_HELPER(ret, "Send Error");
         printf("You cannot add a comment to this topic.");
       } else {
         printf("\n\033[107;1m\033[30;1mInsert here the Comment to the current "
@@ -169,10 +181,12 @@ void client_loop(int socket_desc, char *current_user) {
           exit(EXIT_FAILURE);
         }
         buf[1023] = '\0';
-        send(socket_desc, buf, 1024, 0);
+        ret=send(socket_desc, buf, 1024, 0);
+        ERROR_HELPER(ret, "Send Error");
       }
     }
-    recv(socket_desc, buf, buf_len, 0);
+    ret=recv(socket_desc, buf, buf_len, 0);
+    ERROR_HELPER(ret, "Recv Error");
     if (!strncmp(buf, "help\0", 4)) {
       print_logo();
       print_menu();
@@ -209,7 +223,7 @@ void client_loop(int socket_desc, char *current_user) {
 // tipo fgets
 int main(int argc, char *argv[]) {
   char init[16];
-  int ret, recv_bytes = 0;
+  int ret = 0;
 
   char buf[1024];
   size_t buf_len = sizeof(buf);
@@ -256,13 +270,13 @@ int main(int argc, char *argv[]) {
              strcmp(init, "register") == 0 || strcmp(init, "R") == 0 ||
              strcmp(init, "A") == 0));
   // manda il messaggio A o R
-  while ((ret = send(socket_desc, init, strlen(init), 0)) < 0) {
-    if (errno == EINTR)
-      continue;
-    ERROR_HELPER(-1, "Cannot write to socket");
-  }
+  ret = send(socket_desc, init, strlen(init), 0);
+  ERROR_HELPER(ret, "Send Error");
+
   // riceve la risposta del messaggio A o R
-  recv_bytes = recv(socket_desc, buf, buf_len, 0);
+  ret = recv(socket_desc, buf, buf_len, 0);
+  ERROR_HELPER(ret, "Recv Error");
+
   // stampa la risposta del messaggio A o R ("\nPlease insert
   // credentials\nUsername:")
   printf("\n\033[1m%s\033[0m", buf);
@@ -277,9 +291,11 @@ int main(int argc, char *argv[]) {
     exit(1);
   }
   // sending username
-  send(socket_desc, username, strlen(username), 0);
+  ret = send(socket_desc, username, strlen(username), 0);
+  ERROR_HELPER(ret, "Send Error");
   // receiving password request ("Password: ")
-  recv_bytes = recv(socket_desc, buf, buf_len, 0);
+  ret = recv(socket_desc, buf, buf_len, 0);
+  ERROR_HELPER(ret, "Recv Error");
   printf("\033[1m%s\033[0m", buf);
   char password[32];
   fgets(password, sizeof(password), stdin);
@@ -287,13 +303,11 @@ int main(int argc, char *argv[]) {
   strncat(password, &end, 1);
   // printf("lens: %d - %d\n", strlen(username) ,strlen(password));   // DEBUG
   // sending password
-  send(socket_desc, password, strlen(password), 0);
+  ret = send(socket_desc, password, strlen(password), 0);
+  ERROR_HELPER(ret, "Send Error");
   // Authenticated? Registrated?
-  while ((recv_bytes = recv(socket_desc, buf, buf_len, 0)) < 0) {
-    if (errno == EINTR)
-      continue;
-    ERROR_HELPER(-1, "Cannot read from socket");
-  }
+  ret = recv(socket_desc, buf, buf_len, 0);
+  ERROR_HELPER(ret, "Recv Error");
 
   if (!strcmp(buf, "Registration Done.\0")) {
     printf("\n\033[42;1m   %s                                                  "

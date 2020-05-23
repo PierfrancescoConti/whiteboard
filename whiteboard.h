@@ -268,6 +268,7 @@ void check_all_seen_by_all(int* subscribers, comment* head);
 // semaphores
 
 int initsem (key_t semkey);
+void semclean(key_t semkey);
 
 int Pwait (int semid);
 int Vpost (int semid);

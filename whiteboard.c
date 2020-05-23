@@ -117,7 +117,6 @@ subscribers_pool *new_entry_pool(int uid) {
   subscribers_pool *p = (subscribers_pool *)malloc(sizeof(subscribers_pool));   //freed after addition
   MALLOC_ERROR_HELPER(p, "Malloc Error.");
   p->userid = uid;
-  // printf("%d\n",p->userid);       //DEBUG
   memset(p->list_subid, -1, MAX_SUBSCRIBERS * sizeof(int));
   p->next = NULL;
   return p;
@@ -191,7 +190,6 @@ void add_viewer(topic *t, int uid) {
     return;
   add_to_arr(t->viewers, uid, MAX_SUBSCRIBERS);
 
-  // print_seen(c);      //DEBUG
 }
 
 void add_reply(comment *r, int id_comm) {
@@ -199,7 +197,6 @@ void add_reply(comment *r, int id_comm) {
     return;
   add_to_arr(r->replies, id_comm, MAX_REPLIES);
 
-  // print_replies(r);      //DEBUG
 }
 
 void add_seen(comment *c, int uid) {
@@ -207,7 +204,6 @@ void add_seen(comment *c, int uid) {
     return;
   add_to_arr(c->seen, uid, MAX_SUBSCRIBERS);
 
-  // print_seen(c);      //DEBUG
 }
 
 void add_all_seen(comment *head, int uid) {
@@ -227,12 +223,10 @@ void autp(subscribers_pool *head, int uid) {
   if (head->next == NULL) {
     subscribers_pool *p = new_entry_pool(uid);
     *(head + 1) = *p;
-    // printf("p->userid: %d\n",p->userid);     //DEBUG
     head->next = head + 1;
     free(p);
     return;
   }
-  // printf("%d\n",head->userid);      //DEBUG
   autp(head->next, uid);
 }
 
@@ -248,8 +242,6 @@ void add_subscription_entry(whiteboard *w, int uid, int tid) {
       for (j = 0; j < MAX_SUBSCRIBERS; j++) {
         if ((w->pool + i)->list_subid[j] == -1) {
           (w->pool + i)->list_subid[j] = tid;
-          printf("SUCCESS\n"); // DEBUG
-          // print_pool(w);      //DEBUG
           return;
         }
       }
@@ -331,7 +323,6 @@ user *get_user(whiteboard *w, int id_user) {
 }
 
 user *find_user_by_usname(user *head, char *username) {
-  // printf("curr_us: %s  -  u->usn:%s\n",username,head->username);     //DEBUG
 
   if (!strcmp(head->username, username)) {
     return head;
@@ -374,11 +365,9 @@ comment *get_last_c(comment *head) {
 comment *get_last_comment(topic *t) { return get_last_c(t->commentshead); }
 
 int *find_list_from_pool(subscribers_pool *head, int uid) {
-  // printf("%d--%d\n",head->userid,uid);     //DEBUG
   if (head->userid == uid)
     return head->list_subid;
   if (head->next == NULL) {
-    printf("UTENTE NON TROVATO NELLA POOL\n"); // DEBUG
     return NULL;
   }
   return find_list_from_pool(head->next, uid);
@@ -519,6 +508,7 @@ char *here_all_comments_to_string(topic *t, comment *head, char *buf, int *done,
   }
   buf = cm_to_string(t, head, buf, done);
   // add status?
+  
   if (head->next == NULL) {
     return buf;
   }
@@ -595,11 +585,8 @@ char *cm_to_string(topic *t, comment *head, char *buf, int *done) {
   strcat(buf, "----------------------------------------------------------------"
               "----------------------------------------\n");
 
-  // add status?
-  // for child_to_string();
-  // print_arr(done);    //DEBUG
+
   done = add_to_arr(done, head->id, MAX_COMMENTS);
-  // print_arr(done);    //DEBUG
 
   int i;
   for (i = 0; i < MAX_REPLIES && head->replies[i] != -1; i++) {
@@ -624,7 +611,6 @@ char *ln_to_string(whiteboard *w, topic *t, int id, char *buf) {
            "\033[41;1m   Invalid link                                          "
            "                                               \033[0m\0");
   } else {
-    printf("%d\n", l->topic_id); // DEBUG
     topic *gt = get_topic(w, l->topic_id);
     gt->commentshead = (comment *)shmat(gt->shmidcm, NULL, 0);
     comment *gc = get_comment(gt, l->thread_id);
@@ -651,7 +637,6 @@ char *ln_to_string(whiteboard *w, topic *t, int id, char *buf) {
 
 // authenticator
 int validate_user(whiteboard *w, char *us, char *pw) {
-  // printf("%s\n", us);     //DEBUG
   user *u = get_user_by_usname(w, us);
   if (u && !strcmp(u->password, pw))
     return 0;
@@ -682,9 +667,7 @@ char *Auth(int shmidwb, int socket_desc, int mutex) {
   w->usershead = (user *)shmat(w->shmidus, NULL, 0);
 
   ret = validate_user(w, username, password);
-  // print_users(w);     //DEBUG
   if (ret == 0) {
-    // printf("%s\n",username);     //DEBUG
     shmdt(w->usershead);
     shmdt(w);
     printf("Authentication successful.\n");
@@ -708,7 +691,6 @@ char *Register(int shmidwb, int socket_desc, int mutex) {
   size_t b_len = 32;
   recv(socket_desc, username, b_len, 0);
   replace_char(username, '\n', '\0');
-  char end = '\0'; //????
   // strncat(username, &end, 1);
   if (!strcmp(username, "")) {
     printf("You didn't insert anything.\n");
@@ -722,9 +704,7 @@ char *Register(int shmidwb, int socket_desc, int mutex) {
   MALLOC_ERROR_HELPER(password, "Malloc Error.");
   recv(socket_desc, password, b_len, 0);
   replace_char(password, '\n', '\0');
-  // strncat(password, &end, 1);
   printf("Password: %s\n", password);
-  // printf("lens: %d - %d\n", strlen(username) ,strlen(password));   // DEBUG
 
   // attach to shared memory
   int ret = Pwait(mutex);
@@ -736,7 +716,6 @@ char *Register(int shmidwb, int socket_desc, int mutex) {
   if (us == NULL) {
     user *last = get_last_user(w);
     user *u;
-    // print_users(w);     //DEBUG
     if (last == NULL) {
       u = new_user(0, username, password);
     } else {
@@ -744,7 +723,6 @@ char *Register(int shmidwb, int socket_desc, int mutex) {
     }
     add_user(w, u); // check return?
     printf("Registration done.\n");
-    // print_users(w);     //DEBUG
     free(username);
     free(password);
     shmdt(w->usershead);
@@ -786,10 +764,8 @@ char *replace_char(char *str, char find, char replace) {
 
 // utils
 int int_in_arr(int *arr, int i) {
-  // print_arr(arr);     //DEBUG
   int j;
   for (j = 0; arr[j] != -1; j++) {
-    // printf("%d -- %d",arr[j],i);     //DEBUG
     if (arr[j] == i)
       return 1;
   }
@@ -852,7 +828,7 @@ int initsem(key_t semkey) {
     ushort *array;
   } ctl_arg;
 
-  if ((semid = semget(semkey, 1, 0600 | IPC_CREAT)) > 0) {
+  if ((semid = semget(semkey, 1, IPC_CREAT|IPC_EXCL|0666)) > 0) {
     ctl_arg.val = 1; /* semctl should be called with */
     status = semctl(semid, 0, SETVAL, ctl_arg);
   }
@@ -862,6 +838,25 @@ int initsem(key_t semkey) {
     return (-1);
   } else
     return (semid);
+}
+
+void semclean(key_t semkey){
+  int semid;
+  union semun { /* this has to be declared */
+    int val;
+    struct semid_ds *stat;
+    ushort *array;
+  } ctl_arg;
+
+  if ((semid = semget(semkey, 1, IPC_CREAT|0666)) > 0) {
+    ctl_arg.val = 1; /* semctl should be called with */
+    semctl(semid, 0, SETVAL, ctl_arg);
+  }
+
+  semctl(semid, 0, IPC_RMID); // CLEANS existing semaphore 
+
+
+
 }
 
 int Pwait(int semid) {
