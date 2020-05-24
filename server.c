@@ -8,7 +8,6 @@ int get_digit(char *buf, int i) { // i is the num's starting index
   int number = 0;
   while (d != '\0') {
     d = buf[i];
-    // printf("d: %c\n", d);  // DEBUG
     if (!isdigit(d))
       break;
 
@@ -52,7 +51,6 @@ void notify(int shmidwb, int socket_desc, char *current_user, int mutex) {
       topic *t = get_topic(w, listid[j]);
       if (!int_in_arr(t->viewers, cuid)) {
         to_notify[i] = listid[j];
-        printf("%d, ", to_notify[i]);
         i++;
       }
     }
@@ -77,7 +75,6 @@ void notify(int shmidwb, int socket_desc, char *current_user, int mutex) {
     ret = Vpost(mutex);
     ERROR_HELPER(ret, "Vpost Error");
   }
-  // printf("SENDING: %s\n",resp);   //DEBUG
 
   ret=send(socket_desc, resp, strlen(resp), 0);
   ERROR_HELPER(ret, "Send Error");
@@ -86,7 +83,6 @@ void notify(int shmidwb, int socket_desc, char *current_user, int mutex) {
 
 void app_loop(int shmidwb, int socket_desc, char *current_user, int mutex) {
   notify(shmidwb, socket_desc, current_user, mutex);
-  printf("%s\n", current_user); // DEBUG
   int ret;
   int current_tp_id = -1;
   char *buf = (char *)malloc(1024 * sizeof(char));
@@ -147,7 +143,6 @@ void app_loop(int shmidwb, int socket_desc, char *current_user, int mutex) {
         ret = Vpost(mutex);
         ERROR_HELPER(ret, "Vpost Error");
       }
-      printf("current_tp_id: %d\n", current_tp_id); // DEBUG
     }
     /////////////////////////////////////////////////////////////////////
     //////////////////////////// list topics ////////////////////////////
@@ -164,7 +159,6 @@ void app_loop(int shmidwb, int socket_desc, char *current_user, int mutex) {
       shmdt(w);
       ret = Vpost(mutex);
       ERROR_HELPER(ret, "Vpost Error");
-      // printf("%s\n", resp);   //DEBUG
     }
     ////////////////////////////////////////////////////////////////////////
     //////////////////////////// status comment ////////////////////////////
@@ -225,7 +219,6 @@ void app_loop(int shmidwb, int socket_desc, char *current_user, int mutex) {
                "topic [topic#])                                    \033[0m\0");
       } else {
         int nth, nfrom = get_digit(buf, 5);
-        printf("From Topic#: %d\n", nfrom); // DEBUG
         if (nfrom > 9) {
           if (nfrom > 99)
             nth = get_digit(buf, 9);
@@ -233,9 +226,7 @@ void app_loop(int shmidwb, int socket_desc, char *current_user, int mutex) {
             nth = get_digit(buf, 8);
         } else {
           nth = get_digit(buf, 7);
-          printf("Thread#: %d\n", nth); // DEBUG
         }
-        printf("%d", nth);
         if (nfrom == -1 || nth == -1) {
           strcpy(
               resp,
@@ -368,8 +359,8 @@ void app_loop(int shmidwb, int socket_desc, char *current_user, int mutex) {
           ret=recv(socket_desc, buf, buf_len, 0);
           ERROR_HELPER(ret, "Recv Error");
         } else {
-          ret = Pwait(mutex);
-          ERROR_HELPER(ret, "Pwait Error");
+          //ret = Pwait(mutex);
+          //ERROR_HELPER(ret, "Pwait Error");
           whiteboard *w = (whiteboard *)shmat(shmidwb, NULL, 0);
           w->topicshead = (topic *)shmat(w->shmidto, NULL, 0);
           w->usershead = (user *)shmat(w->shmidus, NULL, 0);
@@ -388,12 +379,11 @@ void app_loop(int shmidwb, int socket_desc, char *current_user, int mutex) {
           } else {
             // create comment and add
             t->commentshead = (comment *)shmat(t->shmidcm, NULL, 0);
-            comment *r =
-                get_comment(t, number); // check if number (reply_id) exists
+            comment *r = get_comment(t, number); // check if number (reply_id) exists
             if (!(r == NULL)) {
               // release semaphore while waiting for user input
-              ret = Vpost(mutex);
-              ERROR_HELPER(ret, "Vpost Error");
+              //ret = Vpost(mutex);
+              //ERROR_HELPER(ret, "Vpost Error");
               char *content = (char *)malloc(1024 * sizeof(char));
               MALLOC_ERROR_HELPER(content, "Malloc Error.");
 
@@ -402,21 +392,23 @@ void app_loop(int shmidwb, int socket_desc, char *current_user, int mutex) {
 
               ret=recv(socket_desc, content, 1024, 0);
               ERROR_HELPER(ret, "Recv Error");
-              ret = Pwait(mutex);
-              ERROR_HELPER(ret, "Pwait Error");
+              //ret = Pwait(mutex);
+              //ERROR_HELPER(ret, "Pwait Error");
 
               time_t date;
               time(&date);
 
-              comment *last =
-                  get_last_comment(t); // check if number (reply_id) exists
+              comment *last = get_last_comment(t);
+              printf("last-id: %d\n",last->id); //DEBUG
+
               comment *c = new_comment(last->id + 1, current_user, date,
                                        content, number);
               push_comment(t, c);
+              printf("id commento: %d\n",c->id); //DEBUG
+              
               add_reply(r, c->id);
-              memset(t->viewers, -1, MAX_REPLIES * sizeof(int)); // clear
-                                                                 // viewers
-              print_arr(t->viewers); // DEBUG
+
+              memset(t->viewers, -1, MAX_SUBSCRIBERS * sizeof(int)); // clear viewers
 
               free(content);
 
@@ -437,8 +429,8 @@ void app_loop(int shmidwb, int socket_desc, char *current_user, int mutex) {
           shmdt(w->usershead);
           shmdt(w->topicshead);
           shmdt(w);
-          ret = Vpost(mutex);
-          ERROR_HELPER(ret, "Vpost Error");
+          //ret = Vpost(mutex);
+          //ERROR_HELPER(ret, "Vpost Error");
         }
       } else {
         strcpy(resp,
@@ -553,11 +545,9 @@ void app_loop(int shmidwb, int socket_desc, char *current_user, int mutex) {
           t->commentshead = (comment *)shmat(t->shmidcm, NULL, 0);
 
           comment *last = get_last_comment(t);
-          comment *c =
-              new_comment(last->id + 1, current_user, date, content, -1);
+          comment *c = new_comment(last->id + 1, current_user, date, content, -1);
           push_comment(t, c);
-          memset(t->viewers, -1, MAX_REPLIES * sizeof(int)); // clear viewers
-          print_arr(t->viewers);                             // DEBUG
+          memset(t->viewers, -1, MAX_SUBSCRIBERS * sizeof(int)); // clear viewers
           strcpy(
               resp,
               "\033[42;1m   Comment added successfully!                        "
@@ -593,13 +583,10 @@ void app_loop(int shmidwb, int socket_desc, char *current_user, int mutex) {
         w->usershead = (user *)shmat(w->shmidus, NULL, 0);
 
         user *u = get_user_by_usname(w, current_user);
-        // if(u==NULL) printf("NULL\n");     //DEBUG
-        // printf("us: %s\n",u->username);     //DEBUG
         topic *t = get_topic(w, current_tp_id);
         t->commentshead = (comment *)shmat(t->shmidcm, NULL, 0);
         int cuid = get_user_by_usname(w, current_user)->id;
 
-        // printf("us: %s  -  tp:%d\n",u->username,t->id);     //DEBUG
         // CHECK if already subscribed
         if (int_in_arr(t->subscribers, cuid)) {
           strcpy(
@@ -612,8 +599,6 @@ void app_loop(int shmidwb, int socket_desc, char *current_user, int mutex) {
           add_viewer(t, u->id);
           add_all_seen(t->commentshead, u->id);
           check_all_seen_by_all(t->subscribers, t->commentshead);
-          // printf("Subscribers:\n");     //DEBUG
-          // printf("%d-%d\n",t->subscribers[0],t->subscribers[1]);     //DEBUG
           strcpy(
               resp,
               "\033[42;1m   Subscribed.                                        "
@@ -637,7 +622,6 @@ void app_loop(int shmidwb, int socket_desc, char *current_user, int mutex) {
     //////////////////////////// delete topic ////////////////////////////
     else if (strncmp(buf, "delete topic ", 13) == 0) {
       int number = get_digit(buf, 13);
-      // printf("%d\n",number);    //DEBUG
       if (number == -1)
         strcpy(resp, "\033[41;1m   I don't understand which topic I should delete."
                          "                                                     "
@@ -698,7 +682,6 @@ void app_loop(int shmidwb, int socket_desc, char *current_user, int mutex) {
     //////////////////////////// ADMIN: delete user ////////////////////////////
     else if (!strncmp(buf, "delete user ", 12)) {
       int userid = get_digit(buf, 12);
-      // printf("%d\n",number);    //DEBUG
       if (userid == -1)
         strcpy(resp, "I don't understand which user I should delete.\0");
       else {
@@ -732,6 +715,9 @@ void app_loop(int shmidwb, int socket_desc, char *current_user, int mutex) {
     //////////////////////////////////////////////////////////////
     //////////////////////////// quit ////////////////////////////
     else if (strncmp(buf, "quit", 4) == 0) {
+      strcpy(resp, "\n                                        \033[43;1m      Goodbye!      \033[0m\n\n");
+      ret=send(socket_desc, resp, strlen(resp), 0);
+      ERROR_HELPER(ret, "Send Error");
       break;
     }
     //////////////////////////////////////////////////////////////
@@ -743,7 +729,6 @@ void app_loop(int shmidwb, int socket_desc, char *current_user, int mutex) {
     ret=send(socket_desc, resp, strlen(resp), 0);
     ERROR_HELPER(ret, "Send Error");
   }
-  // printf("free\n");     //DEBUG
 
   free(buf);
   free(resp);
@@ -772,9 +757,6 @@ void *connection_handler(int shmidwb, int socket_desc,
   ret=recv(socket_desc, buf, buf_len, 0);
   ERROR_HELPER(ret, "Recv Error");
 
-
-  printf("Command: %s\n", buf); // DEBUG
-
   //////////////////////////////////////////////////////////////////////
   ///////////////////////////////REGISTER///////////////////////////////
   if (buf[0] == 'R' || buf[0] == 'r') {
@@ -784,7 +766,6 @@ void *connection_handler(int shmidwb, int socket_desc,
 
       if (resp != NULL)
         break;
-      // printf("Username already taken.\n");     //DEBUG
       ret=send(socket_desc, "Username already taken.\0", 32, 0);
       ERROR_HELPER(ret, "Send Error");
       // close socket
@@ -792,10 +773,8 @@ void *connection_handler(int shmidwb, int socket_desc,
       ERROR_HELPER(ret, "Cannot close socket for incoming connection");
       free(buf);
       free(client_addr);      // do not forget to free this buffer!
-      printf("all closed\n"); // DEBUG
       exit(1);
     }
-    // printf("out\n");     //DEBUG
     strcpy(resp, "Registration Done.\0");
     ret=send(socket_desc, resp, 32, 0);
     ERROR_HELPER(ret, "Send Error");
@@ -806,16 +785,12 @@ void *connection_handler(int shmidwb, int socket_desc,
 
     current_user = Auth(shmidwb, socket_desc, mutex);
     if (current_user == NULL) {
-      // printf("Invalid credentials.\n");     //DEBUG
       ret=send(socket_desc, "Invalid credentials.\0", 32, 0);
       ERROR_HELPER(ret, "Send Error");
       free(buf);
       free(client_addr);      // do not forget to free this buffer!
-      printf("all closed\n"); // DEBUG
       exit(1);
     }
-    printf("Current_User: %s\n", current_user); // DEBUG
-
     char *resp = current_user;
     replace_char(resp, '\n', '\0');
     ret=send(socket_desc, resp, 32, 0);
@@ -828,7 +803,6 @@ void *connection_handler(int shmidwb, int socket_desc,
   ERROR_HELPER(ret, "Cannot close socket for incoming connection");
   free(buf);
   free(client_addr);      // do not forget to free this buffer!
-  printf("all closed\n"); // DEBUG
   exit(1);
 }
 
@@ -897,8 +871,8 @@ int main(int argc, char *argv[]) {
   // I allocate client_addr dynamically and initialize it to zero
   struct sockaddr_in *client_addr = calloc(1, sizeof(struct sockaddr_in));
   MALLOC_ERROR_HELPER(client_addr, "Calloc Error.");
-  if (DEBUG)
-    fprintf(stderr, "Server in listening mode...\n");
+
+  printf("Server in listening mode...\n");
 
   while (1) {
     // accept incoming connection
@@ -908,7 +882,7 @@ int main(int argc, char *argv[]) {
       continue; // check for interruption by signals
     ERROR_HELPER(client_desc, "Cannot open socket for incoming connection");
 
-    printf("Incoming connection accepted...\n");
+    printf("\033[36;4mIncoming connection accepted...\n\033[0m");
 
     if ((processID = fork()) < 0) {
       ERROR_HELPER(processID, "Fork error.");

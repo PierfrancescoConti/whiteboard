@@ -111,8 +111,13 @@ void client_loop(int socket_desc, char *current_user) {
         strcmp(choice, "quit") == 0 || strcmp(choice, "list users") == 0));
     ret = send(socket_desc, choice, strlen(choice), 0);
     ERROR_HELPER(ret, "Send Error");
-    if (!strcmp(choice, "quit"))
+    if (!strcmp(choice, "quit")){
+      ret=recv(socket_desc, buf, buf_len, 0);
+      ERROR_HELPER(ret, "Recv Error");
+      print_logo();
+      printf("%s\n", buf);
       break;
+    }
     else if (!strcmp(choice, "create topic")) {
       ret=recv(socket_desc, buf, buf_len, 0);
       ERROR_HELPER(ret, "Recv Error");
@@ -287,7 +292,7 @@ int main(int argc, char *argv[]) {
   char end = '\0'; //????
   strncat(username, &end, 1);
   if (!strcmp(username, "")) {
-    printf("You didn't insert anything.\n");
+    printf("\n\033[31mYou didn't insert any username.\033[0m\n\n");
     exit(1);
   }
   // sending username
@@ -301,10 +306,12 @@ int main(int argc, char *argv[]) {
   fgets(password, sizeof(password), stdin);
   replace_char(password, '\n', '\0');
   strncat(password, &end, 1);
-  // printf("lens: %d - %d\n", strlen(username) ,strlen(password));   // DEBUG
-  // sending password
   ret = send(socket_desc, password, strlen(password), 0);
   ERROR_HELPER(ret, "Send Error");
+  if (!strcmp(password, "")) {
+    printf("\n\033[31mPassword can't be blank.\033[0m\n\n");
+    exit(1);
+  }
   // Authenticated? Registrated?
   ret = recv(socket_desc, buf, buf_len, 0);
   ERROR_HELPER(ret, "Recv Error");
@@ -322,7 +329,6 @@ int main(int argc, char *argv[]) {
        strcmp(buf, "Username already taken.\0") == 0))
     exit(1);
   ;
-  // printf("Sending Ready\n");       //DEBUG
 
   client_loop(socket_desc, buf);
 }

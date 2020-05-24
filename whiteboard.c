@@ -154,7 +154,7 @@ void append_comment(comment *head, comment *c) {
   if (head->next == NULL) {
     strcpy(c->status, "K\0");
     *(head + 1) = *c;
-    free(c);
+    //free(c);  //can't free
     head->next = head + 1;
   } else
     return append_comment(head->next, c);
@@ -165,7 +165,7 @@ void push_comment(topic *t, comment *c) { append_comment(t->commentshead, c); }
 void append_link(linkt *head, linkt *l) {
   if (head->next == NULL) {
     *(head + 1) = *l;
-    free(l);
+    //free(l);
     head->next = head + 1;
   } else
     return append_link(head->next, l);
@@ -500,7 +500,6 @@ char *us_to_string(whiteboard *w) {
 char *here_all_comments_to_string(topic *t, comment *head, char *buf, int *done,
                                   int subscribed) {
   if (subscribed == 0) {
-    printf("subscribed==0\n");
     strcat(buf,
            "\033[41;1m   Wait! To see comments, you must subscribe to this "
            "topic! (usage: subscribe)                          \033[0m");
@@ -652,6 +651,9 @@ char *Auth(int shmidwb, int socket_desc, int mutex) {
   size_t b_len = 32;
   recv(socket_desc, username, b_len, 0);
   replace_char(username, '\n', '\0');
+  if (!strcmp(username, "")) {
+    exit(1);
+  }
   s = "Password: \0";
   send(socket_desc, s, 13, 0);
 
@@ -659,6 +661,9 @@ char *Auth(int shmidwb, int socket_desc, int mutex) {
   MALLOC_ERROR_HELPER(password, "Malloc Error.");
   recv(socket_desc, password, b_len, 0); // gestire gli errori di TUTTE le recv
   replace_char(password, '\n', '\0');
+  if (!strcmp(password, "")) {
+    exit(1);
+  }
 
   // attach to shared memory
   int ret = Pwait(mutex);
@@ -670,7 +675,7 @@ char *Auth(int shmidwb, int socket_desc, int mutex) {
   if (ret == 0) {
     shmdt(w->usershead);
     shmdt(w);
-    printf("Authentication successful.\n");
+    printf("\033[32mAuthenticated user: \033[33;1m%s\033[0m\033[32m.\033[0m\n", username);
     ret = Vpost(mutex);
     ERROR_HELPER(ret, "Vpost Error");
     return username;
@@ -691,12 +696,9 @@ char *Register(int shmidwb, int socket_desc, int mutex) {
   size_t b_len = 32;
   recv(socket_desc, username, b_len, 0);
   replace_char(username, '\n', '\0');
-  // strncat(username, &end, 1);
   if (!strcmp(username, "")) {
-    printf("You didn't insert anything.\n");
-    return NULL;
+    exit(1);
   }
-  printf("Username: %s\n", username);
 
   s = "Password: \0";
   send(socket_desc, s, 13, 0);
@@ -704,7 +706,9 @@ char *Register(int shmidwb, int socket_desc, int mutex) {
   MALLOC_ERROR_HELPER(password, "Malloc Error.");
   recv(socket_desc, password, b_len, 0);
   replace_char(password, '\n', '\0');
-  printf("Password: %s\n", password);
+  if (!strcmp(password, "")) {
+    exit(1);
+  }
 
   // attach to shared memory
   int ret = Pwait(mutex);
@@ -722,7 +726,7 @@ char *Register(int shmidwb, int socket_desc, int mutex) {
       u = new_user(last->id + 1, username, password);
     }
     add_user(w, u); // check return?
-    printf("Registration done.\n");
+    printf("\033[32mRegistered user: \033[33;1m%s\033[0m\033[32m.\033[0m\n", username);
     free(username);
     free(password);
     shmdt(w->usershead);
@@ -731,7 +735,6 @@ char *Register(int shmidwb, int socket_desc, int mutex) {
     ERROR_HELPER(ret, "Vpost Error");
     return u->username;
   }
-  printf("Username already taken.\n");
   shmdt(w->usershead);
   shmdt(w);
   ret = Vpost(mutex);
@@ -842,21 +845,18 @@ int initsem(key_t semkey) {
 
 void semclean(key_t semkey){
   int semid;
-  union semun { /* this has to be declared */
+  union semun {
     int val;
     struct semid_ds *stat;
     ushort *array;
   } ctl_arg;
 
   if ((semid = semget(semkey, 1, IPC_CREAT|0666)) > 0) {
-    ctl_arg.val = 1; /* semctl should be called with */
+    ctl_arg.val = 1;
     semctl(semid, 0, SETVAL, ctl_arg);
   }
 
   semctl(semid, 0, IPC_RMID); // CLEANS existing semaphore 
-
-
-
 }
 
 int Pwait(int semid) {

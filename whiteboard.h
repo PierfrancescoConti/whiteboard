@@ -41,6 +41,7 @@
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // TODO:
+//      - status message: print date
 //      - check ret value! for everything!
 //      - check semaphores for choose topic, register, link//      - DONE: edit each function to interact with shared memories - which shmid should each field have? which size?
 //      - check if MAX_SIZE is exceeded for each buffer -> if so, operation not permitted
