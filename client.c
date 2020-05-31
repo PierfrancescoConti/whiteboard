@@ -56,8 +56,6 @@ void print_menu() { // help
     printf("--------------------------------------------------------------------------------------------------------\n");
     printf("-> \033[1;34mreply [comment#]       \033[0m|-  You can write a comment as response to another comment.\n");
     printf("--------------------------------------------------------------------------------------------------------\n");
-    printf("-> \033[1;34mget [comment#]         \033[0m|-  It shows all the info about the comment you decide inside\n                          |   the current topic.\n");
-    printf("--------------------------------------------------------------------------------------------------------\n");
     printf("-> \033[1;34mstatus [comment#]      \033[0m|-  It shows the status of the comment you decide inside the current topic.\n");
     printf("--------------------------------------------------------------------------------------------------------\n");
     printf("-> \033[1;34mlink [topic#] [topic#] \033[0m|-  You can refer to a thread contained in another topic.\n");
@@ -203,7 +201,7 @@ void client_loop(int socket_desc, char *current_user) {
                "all registered users.\n");
         printf("---------------------------------------------------------------"
                "-----------------------------------------\n");
-        printf("-> \033[1;31mdelete user [userid#]       \033[0m|-  You can "
+        printf("-> \033[1;31mdelete user [userid#]        \033[0m|-  You can "
                "delete users.\n");
         printf(
             "\n\033[1;41m                                                      "
@@ -326,7 +324,8 @@ int main(int argc, char *argv[]) {
          "                          \033[0m\n\n",
          buf);
   if ((strcmp(buf, "Invalid credentials.\0") == 0 ||
-       strcmp(buf, "Username already taken.\0") == 0))
+       strcmp(buf, "Username already taken.\0") == 0 ||
+       strcmp(buf, "Users memory is full.\0") == 0 ))
     exit(1);
   ;
 

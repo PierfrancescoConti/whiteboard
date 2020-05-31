@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 #include <arpa/inet.h>  // htons() and inet_addr()
 #include <netinet/in.h> // struct sockaddr_in
@@ -88,159 +89,32 @@ void client_loop(int socket_desc){
 
     memset(buf, 0, buf_len);          // FLUSH
     memset(choice, 0, 32);          // FLUSH
-    
-    //help//
-    printf("\n> \033[34;1mhelp\033[0m\n");
-    strcpy(choice,"help\0");
-    send(socket_desc, choice,strlen(choice),0);
-    recv(socket_desc, buf, buf_len, 0);
 
-    print_menu();
-
-
-    memset(buf, 0, buf_len);          // FLUSH
-    memset(choice, 0, 32);          // FLUSH
-
-    printf("\n\n\n");
+    int i;
+    //Fill and exceed topics' memory creating topics//
+    for(i=0;i<128;i++){
+        strcpy(choice,"create topic\0");
+        send(socket_desc, choice,strlen(choice),0);
+        recv(socket_desc, buf, buf_len, 0);
 
 
-    //create topic//
-    printf("\n> \033[34;1mcreate topic\033[0m\n");
-    strcpy(choice,"create topic\0");
-    send(socket_desc, choice,strlen(choice),0);
-    recv(socket_desc, buf, buf_len, 0);
+        send(socket_desc, "Titolo Topic Test\n",20,0);
+        recv(socket_desc, buf, buf_len, 0);
 
-    printf("\n\033[107;1m\033[30;1mInsert here Topic's Title and Content (Press Enter to send)                                             \033[0m\n\n\033[97;1mTitle\033[0m> Titolo Topic Test\n");
-
-    send(socket_desc, "Titolo Topic Test\n",20,0);
-    recv(socket_desc, buf, buf_len, 0);
-
-    printf("\n\033[97;1mContent\033[0m> Contenuto Topic Test\n\n");
-    send(socket_desc, "Contenuto Topic Test\n",22,0);
-    recv(socket_desc, buf, buf_len, 0);
-
-    printf("%s\n", buf);
+        send(socket_desc, "Contenuto Topic Test\n",22,0);
+        recv(socket_desc, buf, buf_len, 0);
 
 
-    memset(buf, 0, buf_len);          // FLUSH
-    memset(choice, 0, 32);          // FLUSH
-
-    printf("\n\n\n");
-
-
-    //list topics//
-    printf("\n> \033[34;1mlist topics\033[0m\n");
-    strcpy(choice,"list topics\0");
-    send(socket_desc, choice,strlen(choice),0);
-    recv(socket_desc, buf, buf_len, 0);
-
-    printf("%s\n", buf);
-
-    memset(buf, 0, buf_len);          // FLUSH
-    memset(choice, 0, 32);          // FLUSH
-
-    printf("\n\n\n");
-
-    //choose topic//
-    printf("\n> \033[34;1mtopic 0\033[0m\n");
-    strcpy(choice,"topic 0\0");
-    send(socket_desc, choice,strlen(choice),0);
-    recv(socket_desc, buf, buf_len, 0);
-
-    printf("%s\n", buf);
-
-    memset(buf, 0, buf_len);          // FLUSH
-    memset(choice, 0, 32);          // FLUSH
-
-    printf("\n\n\n");
-
-    //add thread//
-    printf("\n> \033[34;1madd thread\033[0m\n");
-    strcpy(choice,"add thread\0");
-    send(socket_desc, choice,strlen(choice),0);
-    recv(socket_desc, buf, buf_len, 0);
-    if(strncmp(buf, "content",7)){
-        send(socket_desc, "NO\0",3,0);
-        printf("You cannot add a comment to this topic.\n");
     }
-    else{
-        printf("\n\033[107;1m\033[30;1mInsert here the Comment to the current Topic. (Press Enter to send)                                     \033[0m\n\n\033[97;1mComment\033[0m> Comment Test\n");
-
-        send(socket_desc, "Comment Test\n",22,0);
-    }
-    recv(socket_desc, buf, buf_len, 0);
 
     printf("%s\n", buf);
 
     memset(buf, 0, buf_len);          // FLUSH
     memset(choice, 0, 32);          // FLUSH
 
-    printf("\n\n\n");
+        printf("\n\n\n");
 
-
-    //subscribe//
-    printf("\n> \033[34;1msubscribe\033[0m\n");
-    strcpy(choice,"subscribe\0");
-    send(socket_desc, choice,strlen(choice),0);
-    recv(socket_desc, buf, buf_len, 0);
-
-    printf("%s\n", buf);
-
-    memset(buf, 0, buf_len);          // FLUSH
-    memset(choice, 0, 32);          // FLUSH
-
-    printf("\n\n\n");
-
-    //add thread//
-    printf("\n> \033[34;1madd thread\033[0m\n");
-    strcpy(choice,"add thread\0");
-    send(socket_desc, choice,strlen(choice),0);
-    recv(socket_desc, buf, buf_len, 0);
-
-    printf("\n\033[107;1m\033[30;1mInsert here the Comment to the current Topic. (Press Enter to send)                                     \033[0m\n\n\033[97;1mComment\033[0m> Comment Test\n");
-
-    send(socket_desc, "Comment Test\n",22,0);
-    recv(socket_desc, buf, buf_len, 0);
-
-    printf("%s\n", buf);
-    memset(buf, 0, buf_len);          // FLUSH
-    memset(choice, 0, 32);          // FLUSH
-
-    printf("\n\n\n");
-
-    //reply 0//
-    printf("\n> \033[34;1mreply 0\033[0m\n");
-    strcpy(choice,"reply 0\0");
-    send(socket_desc, choice,strlen(choice),0);
-    recv(socket_desc, buf, buf_len, 0);
-    
-    printf("\n\033[107;1m\033[30;1mInsert here the Comment to the current Topic. (Press Enter to send)                                     \033[0m\n\n\033[97;1mComment\033[0m> Reply Test\n");
-    send(socket_desc, "Reply Test\n",22,0);
-    
-    recv(socket_desc, buf, buf_len, 0);
-
-    printf("%s\n", buf);
-
-    memset(buf, 0, buf_len);          // FLUSH
-    memset(choice, 0, 32);          // FLUSH
-
-    printf("\n\n\n");
-
-
-    //choose topic//
-    printf("\n> \033[34;1mtopic 0\033[0m\n");
-    strcpy(choice,"topic 0\0");
-    send(socket_desc, choice,strlen(choice),0);
-    recv(socket_desc, buf, buf_len, 0);
-
-    printf("%s\n", buf);
-
-    memset(buf, 0, buf_len);          // FLUSH
-    memset(choice, 0, 32);          // FLUSH
-
-    printf("\n\n\n");
-
-    //choose topic//
+    //choose topic 1//
     printf("\n> \033[34;1mtopic 1\033[0m\n");
     strcpy(choice,"topic 1\0");
     send(socket_desc, choice,strlen(choice),0);
@@ -253,12 +127,22 @@ void client_loop(int socket_desc){
 
     printf("\n\n\n");
 
-    //link//
-    printf("\n> \033[34;1mlink 1 0\033[0m\n");
-    strcpy(choice,"link 1 0\0");
-    send(socket_desc, choice,strlen(choice),0);
-    recv(socket_desc, buf, buf_len, 0);
+    //Fill and exceed a topic's memory creating comments//
+    for(i=0;i<128;i++){
+        strcpy(choice,"add thread\0");
+        send(socket_desc, choice,strlen(choice),0);
+        recv(socket_desc, buf, buf_len, 0);
+        if(strncmp(buf, "content",7)){
+            send(socket_desc, "NO\0",3,0);
+        }
+        else{
 
+            send(socket_desc, "Comment Test\n",22,0);
+        }
+        recv(socket_desc, buf, buf_len, 0);
+
+
+    }
     printf("%s\n", buf);
 
     memset(buf, 0, buf_len);          // FLUSH
@@ -266,31 +150,7 @@ void client_loop(int socket_desc){
 
     printf("\n\n\n");
 
-    //link//
-    printf("\n> \033[34;1mlink 99 99\033[0m\n");
-    strcpy(choice,"link 99 99\0");
-    send(socket_desc, choice,strlen(choice),0);
-    recv(socket_desc, buf, buf_len, 0);
 
-    printf("%s\n", buf);
-
-    memset(buf, 0, buf_len);          // FLUSH
-    memset(choice, 0, 32);          // FLUSH
-
-    printf("\n\n\n");
-
-    //choose topic//
-    printf("\n> \033[34;1mtopic 1\033[0m\n");
-    strcpy(choice,"topic 1\0");
-    send(socket_desc, choice,strlen(choice),0);
-    recv(socket_desc, buf, buf_len, 0);
-
-    printf("%s\n", buf);
-
-    memset(buf, 0, buf_len);          // FLUSH
-    memset(choice, 0, 32);          // FLUSH
-
-    printf("\n\n\n");
 
     //quit//
     printf("\n> \033[34;1mquit\033[0m\n");
@@ -335,42 +195,50 @@ int main(int argc, char* argv[]) {
     int socket_desc;
     struct sockaddr_in server_addr = {0}; // some fields are required to be filled with 0
 
-    // create a socket
-    socket_desc = socket(AF_INET, SOCK_STREAM, 0);
-    ERROR_HELPER(socket_desc, "Could not create socket");
+    int i;
+    //Fill and exceed users' memory creating users//
+    for(i=0;i<128;i++){
+        // create a socket
+        socket_desc = socket(AF_INET, SOCK_STREAM, 0);
+        ERROR_HELPER(socket_desc, "Could not create socket");
 
-    // set up parameters for the connection
-    server_addr.sin_addr.s_addr = inet_addr(SERVER_ADDRESS);
-    server_addr.sin_family      = AF_INET;
-    server_addr.sin_port        = htons(SERVER_PORT); // don't forget about network byte order!
+        // set up parameters for the connection
+        server_addr.sin_addr.s_addr = inet_addr(SERVER_ADDRESS);
+        server_addr.sin_family      = AF_INET;
+        server_addr.sin_port        = htons(SERVER_PORT); // don't forget about network byte order!
 
-     
-     // initiate a connection on the socket
-    ret = connect(socket_desc, (struct sockaddr*) &server_addr, sizeof(struct sockaddr_in));
-    ERROR_HELPER(ret, "Could not create connection");
-    printf("\e[1;1H\e[2J");     //clean
 
-    printf("\033[42;1m   Connection established!                                                                              \033[0m\n\n");
+         // initiate a connection on the socket
+        ret = connect(socket_desc, (struct sockaddr*) &server_addr, sizeof(struct sockaddr_in));
+        ERROR_HELPER(ret, "Could not create connection");
     
-    // loop del messaggio (inserisci i comandi corretti)
-    //REGISTER//
-    printf("\n\033[44;1m   REGISTRATION   \033[0m\n");
-    strcpy(choice,"R\0");
-    send(socket_desc, choice,strlen(choice),0);
-    recv(socket_desc, buf, buf_len, 0);
-    printf("%s", buf);
-    //Username
-    strcpy(choice,"user_test\0");
-    printf("%s\n", choice);
-    send(socket_desc, choice,strlen(choice),0);
-    recv(socket_desc, buf, buf_len, 0);
-    printf("%s", buf);
-    //Password
-    strcpy(choice,"test\0");
-    printf("%s\n", choice);
-    send(socket_desc, choice,strlen(choice),0);
-    recv(socket_desc, buf, buf_len, 0);
-    printf("%s\n", buf);
+
+        // loop del messaggio (inserisci i comandi corretti)
+        //REGISTER//
+        strcpy(choice,"R\0");
+        send(socket_desc, choice,strlen(choice),0);
+        recv(socket_desc, buf, buf_len, 0);
+        //Username
+        strcpy(choice,"user_test");
+        int len=strlen(choice);
+        if(i!=0){
+            sprintf(choice+len,"%d",i);
+        }
+        
+        strcat(choice,"\0");
+        send(socket_desc, choice,strlen(choice),0);
+        recv(socket_desc, buf, buf_len, 0);
+        //Password
+        strcpy(choice,"test\0");
+        send(socket_desc, choice,strlen(choice),0);
+        recv(socket_desc, buf, buf_len, 0);
+    }
+    printf("\n\n\033[41;1m%s                                                                                 \033[0m\n", buf);
+
+    memset(buf, 0, buf_len);          // FLUSH
+    memset(choice, 0, 32);          // FLUSH
+
+    printf("\n\n\n");
 
     sleep(1);
     // create a socket
@@ -397,7 +265,12 @@ int main(int argc, char* argv[]) {
     printf("%s", buf);
     
     //Username
-    strcpy(choice,"user_test\0");
+    srand(time(NULL));
+    strcpy(choice,"user_test");
+    int len=strlen(choice);
+    sprintf(choice+len,"%d",rand()%((120+1)-2) + 2);
+    strcat(choice,"\0");
+
     printf("%s\n", choice);
     send(socket_desc, choice,strlen(choice),0);
     recv(socket_desc, buf, buf_len, 0);

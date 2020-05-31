@@ -1,10 +1,14 @@
 CC = gcc -Wall -g
 
-all: clean client server test
+all: clean client server test test_BOF
 
 
 test:
 	$(CC) -o test test.c global.h 
+
+
+test_BOF:
+	$(CC) -o test_BOF test_BOF.c global.h 
 
 
 client:
@@ -17,4 +21,4 @@ server:
 .PHONY: clean
 
 clean:
-	rm -f client server test
+	rm -f client server test test_BOF

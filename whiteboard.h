@@ -41,10 +41,11 @@
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // TODO:
-//      - status message: print date
-//      - check ret value! for everything!
-//      - check semaphores for choose topic, register, link//      - DONE: edit each function to interact with shared memories - which shmid should each field have? which size?
-//      - check if MAX_SIZE is exceeded for each buffer -> if so, operation not permitted
+//      - DONE: handle all recv/send's ERRORS within witeboard.c
+//      - DONE: status message: print date
+//      - DONE: check ret value! for everything!
+//      - DONE: check semaphores for choose topic, register, link//      - DONE: edit each function to interact with shared memories - which shmid should each field have? which size?
+//      - DONE: check if MAX_SIZE is exceeded for each buffer -> if so, operation not permitted
 //
 //      - DONE: free malloc after adding.
 //      - DONE: test.c (automated client that does things) -> at the end do more things and user_test name random (e.g. user_test75583)
@@ -146,7 +147,7 @@ void append_user(user* head, user* u);        // appends a user to a linked list
 void add_user(whiteboard* w, user* u);
 
 void append_comment(comment* head, comment* c);
-void push_comment(topic* t, comment* c);    // whiteboard modified? -> update_topic
+void push_comment(topic* t, comment* c);
 
 void append_link(linkt* head, linkt* l);
 void add_link(topic* t, linkt* l);
@@ -268,7 +269,7 @@ void check_all_seen_by_all(int* subscribers, comment* head);
 
 // semaphores
 
-int initsem (key_t semkey);
+int initsem (key_t semkey, int size);
 void semclean(key_t semkey);
 
 int Pwait (int semid);

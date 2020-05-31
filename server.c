@@ -44,8 +44,8 @@ void notify(int shmidwb, int socket_desc, char *current_user, int mutex) {
 
     int cuid = get_user_by_usname(w, current_user)->id;
 
-    int *listid =
-        get_list_from_pool(w, cuid); // topics subscribed from current_user
+    int *listid = get_list_from_pool(w, cuid); // topics subscribed from current_user
+    
     int j, i = 0;
     for (j = 0; j < MAX_TOPICS && listid[j] != -1; j++) {
       topic *t = get_topic(w, listid[j]);
@@ -54,6 +54,7 @@ void notify(int shmidwb, int socket_desc, char *current_user, int mutex) {
         i++;
       }
     }
+
     if (to_notify[0] != -1) {
       strcpy(resp, "\033[103;1m\033[30;1m   Some of the topics you follow are "
                    "updated! These are:");
@@ -67,8 +68,10 @@ void notify(int shmidwb, int socket_desc, char *current_user, int mutex) {
       strcpy(resp,
              "\033[42;1m   No topics are updated!                              "
              "                                                 \033[0m\n\n\0");
+
     free(to_notify);
     free(buf);
+
     shmdt(w->usershead);
     shmdt(w->topicshead);
     shmdt(w);
@@ -81,7 +84,7 @@ void notify(int shmidwb, int socket_desc, char *current_user, int mutex) {
   free(resp);
 }
 
-void app_loop(int shmidwb, int socket_desc, char *current_user, int mutex) {
+void app_loop(int shmidwb, int socket_desc, char *current_user, int mutex/*, int tpempty, int tpfull*/) {
   notify(shmidwb, socket_desc, current_user, mutex);
   int ret;
   int current_tp_id = -1;
@@ -195,10 +198,18 @@ void app_loop(int shmidwb, int socket_desc, char *current_user, int mutex) {
                            "                                                   "
                            "            \033[0m\0");
             } else {
-              if (strcmp(c->status, "KK\0"))
-                strcpy(resp, "Published and seen by all subscribers.\0");
-              else if (strcmp(c->status, "K\0"))
-                strcpy(resp, "Published, but not seen by all subscribers.\0");
+              if (!strcmp(c->status, "KK")){
+                int len = sprintf(resp, "\n\n\t\033[33;1m%d\033[0m. ", c->id);
+                len += sprintf(resp + len, "\033[1m%s\033[0m\n", c->comm);
+                len += sprintf(resp + len, "\t\t    by %s\n", c->author);
+                len += sprintf(resp + len, "\n\n   \033[34;1mKK\033[0m: \033[1mPublished and seen by all subscribers. \033[0m\n\n   Date: \033[33;1m%s\033[0m\n\n", asctime(localtime(&(c->timestamp))));
+              }
+              else if (!strcmp(c->status, "K")){
+                int len = sprintf(resp, "\n\n\t\033[33;1m%d\033[0m. ", c->id);
+                len += sprintf(resp + len, "\033[1m%s\033[0m\n", c->comm);
+                len += sprintf(resp + len, "\t\t    by %s\n", c->author);
+                len += sprintf(resp + len, "\n\n   \033[34;1mK\033[0m: \033[1mPublished, but not seen by all subscribers. \033[0m\n\n   Date: \033[33;1m%s\033[0m\n\n", asctime(localtime(&(c->timestamp))));
+              }
             }
             shmdt(t->commentshead);
           }
@@ -241,25 +252,26 @@ void app_loop(int shmidwb, int socket_desc, char *current_user, int mutex) {
 
           topic *to = get_topic(w, current_tp_id);
           topic *from = get_topic(w, nfrom);
+          
           if (from == NULL) {
             strcpy(resp, "\033[41;1m   Invalid topic                           "
                          "                                                     "
                          "        \033[0m\0");
           } else {
-
             from->commentshead = (comment *)shmat(from->shmidcm, NULL, 0);
             comment *th = get_comment(from, nth);
-            if (th->in_reply_to != -1) {
-              strcpy(resp, "\033[41;1m   Invalid thread: this is a comment     "
-                           "                                                   "
-                           "            \033[0m\0");
-              shmdt(from->commentshead);
-            } else {
-              if (th == NULL) {
-                shmdt(from->commentshead);
-                strcpy(resp, "\033[41;1m   Invalid thread                      "
+            if (th == NULL) {
+              strcpy(resp, "\033[41;1m   Invalid thread                      "
                              "                                                 "
                              "              \033[0m\0");
+              shmdt(from->commentshead);
+            } else {
+              if (th->in_reply_to != -1) {
+                shmdt(from->commentshead);
+                strcpy(resp, "\033[41;1m   Invalid thread: this is a comment     "
+                           "                                                   "
+                           "            \033[0m\0");
+                
               } else {
                 shmdt(from->commentshead);
                 to->commentshead = (comment *)shmat(to->shmidcm, NULL, 0);
@@ -277,22 +289,29 @@ void app_loop(int shmidwb, int socket_desc, char *current_user, int mutex) {
                           nth, nfrom);
                   strcat(content, "\0");
                   comment *last = get_last_comment(to);
-                  comment *c =
-                      new_comment(last->id + 1, current_user, 0, content, -1);
-                  memset(to->viewers, -1,
-                         MAX_REPLIES * sizeof(int)); // clear viewers
-                  linkt *l = new_link(last->id + 1, nfrom, nth);
+                  if(last->id>=MAX_COMMENTS-1){
+                    free(content);
+                    strcpy(resp, "\033[41;1m   Current Topic's memory is full!   "
+                                 "                                               "
+                                 "                    \033[0m\0");
 
-                  add_link(to, l);
-                  push_comment(to, c);
+                  } else {
+                    comment *c = new_comment(last->id + 1, current_user, 0, content, -1);
+                    memset(to->viewers, -1,
+                           MAX_REPLIES * sizeof(int)); // clear viewers
+                    linkt *l = new_link(last->id + 1, nfrom, nth);
 
-                  add_viewer(to, cuid);
-                  add_all_seen(to->commentshead, cuid);
-                  check_all_seen_by_all(to->subscribers, to->commentshead);
-                  free(content);
-                  strcpy(resp, "\033[42;1m   Link added successfully!          "
-                               "                                               "
-                               "                    \033[0m\0");
+                    add_link(to, l);
+                    push_comment(to, c);
+
+                    add_viewer(to, cuid);
+                    add_all_seen(to->commentshead, cuid);
+                    check_all_seen_by_all(to->subscribers, to->commentshead);
+                    free(content);
+                    strcpy(resp, "\033[42;1m   Link added successfully!          "
+                                 "                                               "
+                                 "                    \033[0m\0");
+                  }
                 }
               }
             }
@@ -329,6 +348,7 @@ void app_loop(int shmidwb, int socket_desc, char *current_user, int mutex) {
           w->usershead = (user *)shmat(w->shmidus, NULL, 0);
 
           char buf[buf_len];
+          memset(buf, 0, buf_len); // FLUSH
 
           strcpy(resp, ln_to_string(w, get_topic(w, current_tp_id), nl, buf));
           strcat(resp, "\0");
@@ -382,8 +402,8 @@ void app_loop(int shmidwb, int socket_desc, char *current_user, int mutex) {
             comment *r = get_comment(t, number); // check if number (reply_id) exists
             if (!(r == NULL)) {
               // release semaphore while waiting for user input
-              //ret = Vpost(mutex);
-              //ERROR_HELPER(ret, "Vpost Error");
+              ret = Vpost(mutex);
+              ERROR_HELPER(ret, "Vpost Error");
               char *content = (char *)malloc(1024 * sizeof(char));
               MALLOC_ERROR_HELPER(content, "Malloc Error.");
 
@@ -392,29 +412,35 @@ void app_loop(int shmidwb, int socket_desc, char *current_user, int mutex) {
 
               ret=recv(socket_desc, content, 1024, 0);
               ERROR_HELPER(ret, "Recv Error");
-              //ret = Pwait(mutex);
-              //ERROR_HELPER(ret, "Pwait Error");
+              ret = Pwait(mutex);
+              ERROR_HELPER(ret, "Pwait Error");
 
               time_t date;
               time(&date);
 
               comment *last = get_last_comment(t);
-              printf("last-id: %d\n",last->id); //DEBUG
+              if(last->id>=MAX_COMMENTS-1){
+                    free(content);
+                    strcpy(resp, "\033[41;1m   Current Topic's memory is full!   "
+                                 "                                               "
+                                 "                    \033[0m\0");
 
-              comment *c = new_comment(last->id + 1, current_user, date,
-                                       content, number);
-              push_comment(t, c);
-              printf("id commento: %d\n",c->id); //DEBUG
-              
-              add_reply(r, c->id);
+              } else {
 
-              memset(t->viewers, -1, MAX_SUBSCRIBERS * sizeof(int)); // clear viewers
+                comment *c = new_comment(last->id + 1, current_user, date,
+                                         content, number);
+                push_comment(t, c);
 
-              free(content);
+                add_reply(r, c->id);
 
-              strcpy(resp, "\033[42;1m   Comment added successfully!           "
-                           "                                                   "
-                           "            \033[0m\0");
+                memset(t->viewers, -1, MAX_SUBSCRIBERS * sizeof(int)); // clear viewers
+
+                free(content);
+
+                strcpy(resp, "\033[42;1m   Comment added successfully!           "
+                             "                                                   "
+                             "            \033[0m\0");
+              }
             } else {
               strcpy(resp, "\033[41;1m   Invalid comment                       "
                            "                                                   "
@@ -462,42 +488,62 @@ void app_loop(int shmidwb, int socket_desc, char *current_user, int mutex) {
       ret=recv(socket_desc, content, 1024, 0);
       ERROR_HELPER(ret, "Recv Error");
 
+      //ret = Pwait(tpempty);
+      //ERROR_HELPER(ret, "Pwait Error");
       ret = Pwait(mutex);
       ERROR_HELPER(ret, "Pwait Error");
       whiteboard *w = (whiteboard *)shmat(shmidwb, NULL, 0);
       w->topicshead = (topic *)shmat(w->shmidto, NULL, 0);
       w->usershead = (user *)shmat(w->shmidus, NULL, 0);
 
-      time_t date;
-      time(&date);
       topic *last = get_last_topic(w);
-      topic *t = new_topic(last->id + 1, current_user, title, content, date);
+      if(last->id<MAX_TOPICS-1){
+        time_t date;
+        time(&date);
 
-      int cuid = get_user_by_usname(w, current_user)->id;
+        topic *t = new_topic(last->id + 1, current_user, title, content, date);
 
-      add_subscriber(t, cuid);
-      add_subscription_entry(w, cuid, t->id);
-      add_viewer(t, cuid);
-      t->commentshead = (comment *)shmat(t->shmidcm, NULL, 0);
-      add_all_seen(t->commentshead, cuid);
-      check_all_seen_by_all(t->subscribers, t->commentshead);
-      shmdt(t->commentshead);
+        int cuid = get_user_by_usname(w, current_user)->id;
 
-      add_topic(w, t);
+        add_subscriber(t, cuid);
+        add_subscription_entry(w, cuid, t->id);
+        add_viewer(t, cuid);
+        t->commentshead = (comment *)shmat(t->shmidcm, NULL, 0);
+        add_all_seen(t->commentshead, cuid);
+        check_all_seen_by_all(t->subscribers, t->commentshead);
+        shmdt(t->commentshead);
 
-      shmdt(w->usershead);
-      shmdt(w->topicshead);
-      shmdt(w);
-      ret = Vpost(mutex);
-      ERROR_HELPER(ret, "Vpost Error");
+        add_topic(w, t);
 
-      free(content);
-      free(title);
+        shmdt(w->usershead);
+        shmdt(w->topicshead);
+        shmdt(w);
+        ret = Vpost(mutex);
+        ERROR_HELPER(ret, "Vpost Error");
+        //ret = Vpost(tpfull);
+        //ERROR_HELPER(ret, "Vpost Error");
 
-      strcpy(resp,
-             "\033[42;1m   Topic created successfully!                         "
-             "                                                 \033[0m");
-      strcat(resp, "\0");
+        free(content);
+        free(title);
+
+        strcpy(resp,
+               "\033[42;1m   Topic created successfully!                         "
+               "                                                 \033[0m");
+        strcat(resp, "\0");
+      }
+      else{
+        strcpy(resp,
+               "\033[41;1m   Wait! You can't create more topics.     "
+               "                                                             \033[0m");
+        strcat(resp, "\0");
+        shmdt(w->usershead);
+        shmdt(w->topicshead);
+        shmdt(w);
+        ret = Vpost(mutex);
+        ERROR_HELPER(ret, "Vpost Error");
+      }
+
+      
     }
     ////////////////////////////////////////////////////////////////////
     //////////////////////////// add thread ////////////////////////////
@@ -545,16 +591,25 @@ void app_loop(int shmidwb, int socket_desc, char *current_user, int mutex) {
           t->commentshead = (comment *)shmat(t->shmidcm, NULL, 0);
 
           comment *last = get_last_comment(t);
-          comment *c = new_comment(last->id + 1, current_user, date, content, -1);
-          push_comment(t, c);
-          memset(t->viewers, -1, MAX_SUBSCRIBERS * sizeof(int)); // clear viewers
-          strcpy(
-              resp,
-              "\033[42;1m   Comment added successfully!                        "
-              "                                                  \033[0m\0");
+          if(last->id>=MAX_COMMENTS-1){
+            free(content);
+            shmdt(t->commentshead);
+            strcpy(resp, "\033[41;1m   Current Topic's memory is full!   "
+                         "                                               "
+                         "                    \033[0m\0");
 
-          free(content);
-          shmdt(t->commentshead);
+          } else {
+            comment *c = new_comment(last->id + 1, current_user, date, content, -1);
+            push_comment(t, c);
+            memset(t->viewers, -1, MAX_SUBSCRIBERS * sizeof(int)); // clear viewers
+            strcpy(
+                resp,
+                "\033[42;1m   Comment added successfully!                        "
+                "                                                  \033[0m\0");
+
+            free(content);
+            shmdt(t->commentshead);
+          }
         }
         shmdt(w->usershead);
         shmdt(w->topicshead);
@@ -736,11 +791,10 @@ void app_loop(int shmidwb, int socket_desc, char *current_user, int mutex) {
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////// PROCESS ROUTINE
-/////////////////////////////////////////////
+////////////////////////////////////////// PROCESS ROUTINE///////////////////////////////////////////
 
 void *connection_handler(int shmidwb, int socket_desc,
-                         struct sockaddr_in *client_addr, int mutex) {
+                         struct sockaddr_in *client_addr, int mutex/*, int tpempty, int tpfull*/) {
 
   int ret;
 
@@ -763,17 +817,28 @@ void *connection_handler(int shmidwb, int socket_desc,
     char *resp = NULL;
     while (1) {
       resp = Register(shmidwb, socket_desc, mutex);
-
-      if (resp != NULL)
-        break;
-      ret=send(socket_desc, "Username already taken.\0", 32, 0);
-      ERROR_HELPER(ret, "Send Error");
-      // close socket
-      ret = close(socket_desc);
-      ERROR_HELPER(ret, "Cannot close socket for incoming connection");
-      free(buf);
-      free(client_addr);      // do not forget to free this buffer!
-      exit(1);
+      
+      if(!strcmp(resp,"Too many!")){
+        ret=send(socket_desc, "Users memory is full.\0", 32, 0);
+        ERROR_HELPER(ret, "Send Error");
+        // close socket
+        ret = close(socket_desc);
+        ERROR_HELPER(ret, "Cannot close socket for incoming connection");
+        free(buf);
+        free(client_addr);      // do not forget to free this buffer!
+        exit(1);
+      } else if (!strcmp(resp,"NULL")){
+        ret=send(socket_desc, "Username already taken.\0", 32, 0);
+        ERROR_HELPER(ret, "Send Error");
+        // close socket
+        ret = close(socket_desc);
+        ERROR_HELPER(ret, "Cannot close socket for incoming connection");
+        free(buf);
+        free(client_addr);      // do not forget to free this buffer!
+        exit(1);
+      }
+      else
+          break;
     }
     strcpy(resp, "Registration Done.\0");
     ret=send(socket_desc, resp, 32, 0);
@@ -795,8 +860,7 @@ void *connection_handler(int shmidwb, int socket_desc,
     replace_char(resp, '\n', '\0');
     ret=send(socket_desc, resp, 32, 0);
     ERROR_HELPER(ret, "Send Error");
-
-    app_loop(shmidwb, socket_desc, current_user, mutex);
+    app_loop(shmidwb, socket_desc, current_user, mutex/*, tpempty, tpfull*/);
   }
   // close socket
   ret = close(socket_desc);
@@ -815,14 +879,22 @@ int main(int argc, char *argv[]) {
 
   // semaphore
   key_t semkey = IPC_PRIVATE;
-  int mutex;
+  //key_t tpfullsemkey = 0x200;
+  //key_t tpemptysemkey = 0x300;
+  int mutex/*, tpfull, tpempty*/;
 
   semclean(semkey);
+  //semclean(tpfullsemkey);     //NOT NECESSARY!!!
+  //semclean(tpemptysemkey);
 
-  if ((mutex = initsem(semkey)) < 0) {
-    perror("initsem");
-    exit(1);
-  }
+  mutex = initsem(semkey,1);
+  ERROR_HELPER(mutex,"InitSem Error");
+
+  //tpfull = initsem(tpfullsemkey,0);
+  //ERROR_HELPER(tpfull,"InitSem Error");
+
+  //tpempty = initsem(tpemptysemkey,MAX_TOPICS);
+  //ERROR_HELPER(tpempty,"InitSem Error");
 
 
   // shared memory
@@ -887,7 +959,7 @@ int main(int argc, char *argv[]) {
     if ((processID = fork()) < 0) {
       ERROR_HELPER(processID, "Fork error.");
     } else if (processID == 0) { /* If this is the child process */
-      connection_handler(shmidwb, client_desc, client_addr, mutex);
+      connection_handler(shmidwb, client_desc, client_addr, mutex/*, tpempty, tpfull*/);
     } else {
       client_addr = calloc(1, sizeof(struct sockaddr_in));
       MALLOC_ERROR_HELPER(client_addr, "Calloc Error.");

@@ -165,7 +165,7 @@ void push_comment(topic *t, comment *c) { append_comment(t->commentshead, c); }
 void append_link(linkt *head, linkt *l) {
   if (head->next == NULL) {
     *(head + 1) = *l;
-    //free(l);
+    //free(l);  //can't free
     head->next = head + 1;
   } else
     return append_link(head->next, l);
@@ -649,7 +649,10 @@ char *Auth(int shmidwb, int socket_desc, int mutex) {
   char *username = (char *)malloc(32 * sizeof(char));
   MALLOC_ERROR_HELPER(username, "Malloc Error.");
   size_t b_len = 32;
-  recv(socket_desc, username, b_len, 0);
+
+  int ret=recv(socket_desc, username, b_len, 0);
+  ERROR_HELPER(ret, "Recv Error");
+
   replace_char(username, '\n', '\0');
   if (!strcmp(username, "")) {
     exit(1);
@@ -659,14 +662,16 @@ char *Auth(int shmidwb, int socket_desc, int mutex) {
 
   char *password = (char *)malloc(32 * sizeof(char));
   MALLOC_ERROR_HELPER(password, "Malloc Error.");
-  recv(socket_desc, password, b_len, 0); // gestire gli errori di TUTTE le recv
+  ret=recv(socket_desc, password, b_len, 0);
+  ERROR_HELPER(ret, "Recv Error");
+
   replace_char(password, '\n', '\0');
   if (!strcmp(password, "")) {
     exit(1);
   }
 
   // attach to shared memory
-  int ret = Pwait(mutex);
+  ret = Pwait(mutex);
   ERROR_HELPER(ret, "Pwait Error");
   whiteboard *w = shmat(shmidwb, NULL, 0);
   w->usershead = (user *)shmat(w->shmidus, NULL, 0);
@@ -694,7 +699,10 @@ char *Register(int shmidwb, int socket_desc, int mutex) {
   char *username = (char *)malloc(sizeof(char) * 32);
   MALLOC_ERROR_HELPER(username, "Malloc Error.");
   size_t b_len = 32;
-  recv(socket_desc, username, b_len, 0);
+  
+  int ret=recv(socket_desc, username, b_len, 0);
+  ERROR_HELPER(ret, "Recv Error");
+
   replace_char(username, '\n', '\0');
   if (!strcmp(username, "")) {
     exit(1);
@@ -704,14 +712,17 @@ char *Register(int shmidwb, int socket_desc, int mutex) {
   send(socket_desc, s, 13, 0);
   char *password = (char *)malloc(sizeof(char) * 32);
   MALLOC_ERROR_HELPER(password, "Malloc Error.");
-  recv(socket_desc, password, b_len, 0);
+
+  ret=recv(socket_desc, password, b_len, 0);
+  ERROR_HELPER(ret, "Recv Error");
+
   replace_char(password, '\n', '\0');
   if (!strcmp(password, "")) {
     exit(1);
   }
 
   // attach to shared memory
-  int ret = Pwait(mutex);
+  ret = Pwait(mutex);
   ERROR_HELPER(ret, "Pwait Error");
   whiteboard *w = shmat(shmidwb, NULL, 0);
   w->usershead = (user *)shmat(w->shmidus, NULL, 0);
@@ -722,6 +733,14 @@ char *Register(int shmidwb, int socket_desc, int mutex) {
     user *u;
     if (last == NULL) {
       u = new_user(0, username, password);
+    } else if(last->id>=MAX_USERS-1){
+      free(username);
+      free(password);
+      shmdt(w->usershead);
+      shmdt(w);
+      ret = Vpost(mutex);
+      ERROR_HELPER(ret, "Vpost Error");
+      return "Too many!";
     } else {
       u = new_user(last->id + 1, username, password);
     }
@@ -741,7 +760,7 @@ char *Register(int shmidwb, int socket_desc, int mutex) {
   ERROR_HELPER(ret, "Vpost Error");
   free(username);
   free(password);
-  return NULL;
+  return "NULL";
 }
 
 
@@ -823,7 +842,7 @@ void check_all_seen_by_all(int *subscribers, comment *head) {
 
 
 // semaphores
-int initsem(key_t semkey) {
+int initsem(key_t semkey, int size) {
   int status = 0, semid;
   union semun { /* this has to be declared */
     int val;
@@ -832,12 +851,11 @@ int initsem(key_t semkey) {
   } ctl_arg;
 
   if ((semid = semget(semkey, 1, IPC_CREAT|IPC_EXCL|0666)) > 0) {
-    ctl_arg.val = 1; /* semctl should be called with */
+    ctl_arg.val = size; /* semctl should be called with */
     status = semctl(semid, 0, SETVAL, ctl_arg);
   }
 
   if (semid < 0 || status < 0) {
-    perror("initsem(semkey) failed");
     return (-1);
   } else
     return (semid);
@@ -848,7 +866,6 @@ void semclean(key_t semkey){
   union semun {
     int val;
     struct semid_ds *stat;
-    ushort *array;
   } ctl_arg;
 
   if ((semid = semget(semkey, 1, IPC_CREAT|0666)) > 0) {
