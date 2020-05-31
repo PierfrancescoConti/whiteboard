@@ -1,22 +1,5 @@
 #include "whiteboard.h"
 
-int get_digit(char *buf, int i) { // i is the num's starting index
-  char d = 'a';
-  d = buf[i];
-  if (!isdigit(d))
-    return -1;
-  int number = 0;
-  while (d != '\0') {
-    d = buf[i];
-    if (!isdigit(d))
-      break;
-
-    int digit = d - '0';
-    number = number * 10 + digit;
-    i++;
-  }
-  return number;
-}
 
 void notify(int shmidwb, int socket_desc, char *current_user, int mutex) {
   int ret;
@@ -905,7 +888,7 @@ int main(int argc, char *argv[]) {
     exit(1);
   }
 
-  // attach to shared memory  // no need to protect with semaphores
+  // attach to shared memory  // no needed to protect with semaphores
   whiteboard *w = (whiteboard *)shmat(shmidwb, NULL, 0);
 
   w = create_wb(w);

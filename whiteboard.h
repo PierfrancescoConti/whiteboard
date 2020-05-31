@@ -71,7 +71,7 @@
 
 ///////////////// STRUCTURES /////////////////
 
-typedef struct sp{
+typedef struct sp{              // to understand a user is subscribed to which topics 
   int userid;
   int list_subid[MAX_REPLIES];
   struct sp* next;
@@ -90,7 +90,7 @@ typedef struct cm{
   struct cm* next;
 } comment;
 
-typedef struct ln{
+typedef struct ln{      // link to another thread
   int id;
   int topic_id;
   int thread_id;
@@ -139,7 +139,7 @@ topic* new_topic(int id, char* author, char* title, char* content, time_t timest
 user* new_user(int id, char* username, char* password);
 subscribers_pool* new_entry_pool(int uid);
 
-// addition   //for each addition, I have to define it's shmat first and shmdt then
+// addition   //for each addition, I had to define it's shmat first and shmdt then
 void append_topic(topic* head, topic* t);     // appends a topic to a linked list of topics
 void add_topic(whiteboard* w, topic* t);
 
@@ -152,14 +152,14 @@ void push_comment(topic* t, comment* c);
 void append_link(linkt* head, linkt* l);
 void add_link(topic* t, linkt* l);
 
-void add_subscriber(topic* t, int userid);
-void add_viewer(topic* t,int uid);
-void add_reply(comment* r,int id_comm);
-void add_seen(comment* c,int uid);
+void add_subscriber(topic* t, int userid);    // add a user to subscribers list
+void add_viewer(topic* t,int uid);            // a user have seen all messages of this topics
+void add_reply(comment* r,int id_comm);       // to fill the list of messages that reply to a comment
+void add_seen(comment* c,int uid);            // a user have seen that comment
 void add_all_seen(comment* head,int uid);
 void autp(subscribers_pool* head, int uid);
-void add_user_to_pool(whiteboard* w, int uid);
-void add_subscription_entry(whiteboard* w, int uid, int tid);
+void add_user_to_pool(whiteboard* w, int uid);    // add a user to subscribers pool
+void add_subscription_entry(whiteboard* w, int uid, int tid);   // add a topic to the topic list inside a subscribers pool entry
 
 
 
@@ -175,28 +175,28 @@ void delete_comment(topic* t, int id_cm);
 
 
 // getters
-topic* find_topic(topic* head, int id_topic);
+topic* find_topic(topic* head, int id_topic);   // find by id
 topic* get_topic(whiteboard* w, int id_topic);
 
-topic* get_last_t(topic* head);
+topic* get_last_t(topic* head);         // get topic with highest id
 topic* get_last_topic(whiteboard* w);
 
-user* find_user(user* head, int id_user);
+user* find_user(user* head, int id_user);   // find by id
 user* get_user(whiteboard* w, int id_user);
 
-user* find_user_by_usname(user* head, char* username);
+user* find_user_by_usname(user* head, char* username);   // find by username
 user* get_user_by_usname(whiteboard* w, char* username);
 
-user* get_last_u(user* head);
+user* get_last_u(user* head);           // get user with highest id
 user* get_last_user(whiteboard* w);
 
-comment* find_comment(comment* head, int id_comment);
+comment* find_comment(comment* head, int id_comment);   // find by id
 comment* get_comment(topic* t, int id_comment);
 
-comment* get_last_c(comment* head);
+comment* get_last_c(comment* head);     // get comment with highest id
 comment* get_last_comment(topic* t);
 
-int* find_list_from_pool(subscribers_pool* head, int uid);
+int* find_list_from_pool(subscribers_pool* head, int uid);    // get topic list from sub. pool (by user id)
 int* get_list_from_pool(whiteboard* w, int uid);
 
 
@@ -217,7 +217,7 @@ void print_pool(whiteboard* w);
 
 
 
-// to string
+// to string          // used to send to the client the output of the command
 char* here_all_topics_to_string(topic* head, char* buf);
 char* wb_to_string(whiteboard* w);
 
@@ -249,13 +249,14 @@ char* replace_char(char* str, char find, char replace);
 
 
 //utils
-int int_in_arr(int* arr, int i);
-int* add_to_arr(int* arr, int i, int max_size);
+int int_in_arr(int* arr, int i);      // check if an integer is contained in the array
+int* add_to_arr(int* arr, int i, int max_size);     // add an integer to an array
+int get_digit(char *buf, int i);        // get the number inside the command (when needed)
 
 
 
 // checks
-int check_seen_by_all(int* subscribers, int* seen);   //can be generalized: check A subset of B
+int check_seen_by_all(int* subscribers, int* seen);         // can be generalized: check A subset of B
 void check_all_seen_by_all(int* subscribers, comment* head);
 
 

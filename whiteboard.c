@@ -41,10 +41,8 @@ comment *new_comment(int id, char *author, time_t timestamp, char *comm,
   strcpy(c->status, "O\0"); // Sent
 
   strncpy(c->author, author, 32);
-  // c->author[strlen(c->author)-1]='\0';  // stringa troncata se troppo lunga
 
   strncpy(c->comm, comm, 1024);
-  // c->comm[strlen(c->comm)-1]='\0';  // stringa troncata se troppo lunga
 
   c->next = NULL;
   c->in_reply_to = reply_id;
@@ -64,19 +62,15 @@ linkt *new_link(int id, int topic_id, int thread_id) {
   return l;
 }
 
-topic *new_topic(int id, char *author, char *title, char *content,
-                 time_t timestamp) {
+topic *new_topic(int id, char *author, char *title, char *content, time_t timestamp) {
   topic *t = (topic *)malloc(sizeof(topic));  //freed after addition
   MALLOC_ERROR_HELPER(t, "Malloc Error.");
   t->id = id;
   strncpy(t->author, author, 32);
-  // t->author[strlen(t->author)-1]='\0';  // stringa troncata se troppo lunga
 
   strncpy(t->title, title, 256);
-  // t->title[strlen(t->title)-1]='\0';  // stringa troncata se troppo lunga
 
   strncpy(t->content, content, 1024);
-  // t->content[strlen(t->content)-1]='\0';  // stringa troncata se troppo lunga
 
   t->timestamp = timestamp;
   if ((t->shmidcm = shmget(30000 + (t->id * MAX_COMMENTS),
@@ -87,13 +81,11 @@ topic *new_topic(int id, char *author, char *title, char *content,
   }
   t->commentshead = (comment *)shmat(
       t->shmidcm, NULL,
-      0); // manage comments with shared memory  //posso creare la key dello
-          // shmidcm con una operazione -> 30000+(t->id*MAX_COMMENTS)
+      0); // manage comments with shared memory  //posso creare la key dello shmidcm con una operazione -> 30000+(t->id*MAX_COMMENTS)
   time_t date;
   time(&date);
-  *(t->commentshead) =
-      *(new_comment(0, "admin\0", date, "Please, comment below.\n",
-                    -1)); // First comment per topic!
+  *(t->commentshead) = *(new_comment(0, "admin\0", date, "Please, comment below.\n",
+                    -1)); // First comment is mine!
   shmdt(t->commentshead);
   t->next = NULL;
   memset(t->subscribers, -1, MAX_REPLIES * sizeof(int));
@@ -216,7 +208,7 @@ void add_all_seen(comment *head, int uid) {
 }
 
 void autp(subscribers_pool *head, int uid) {
-  if (uid > MAX_USERS) {
+  if (uid >= MAX_USERS) {
     printf("Too much users.\n");
     return;
   }
@@ -806,6 +798,24 @@ int *add_to_arr(int *arr, int i, int max_size) {
   return arr;
 }
 
+int get_digit(char *buf, int i) { // i is the num's starting index
+  char d = 'a';
+  d = buf[i];
+  if (!isdigit(d))
+    return -1;
+  int number = 0;
+  while (d != '\0') {
+    d = buf[i];
+    if (!isdigit(d))
+      break;
+
+    int digit = d - '0';
+    number = number * 10 + digit;
+    i++;
+  }
+  return number;
+}
+
 
 
 
@@ -907,17 +917,3 @@ int Vpost(int semid) {
     return (0);
   }
 }
-
-/*
-void main(){    // WARNING: no shared memory
-  whiteboard* w = create_wb();
-  time_t date;
-  time(&date);
-  topic* t = new_topic(0, "me", "hello", "hello world!", date);
-  add_topic(w, t);
-  comment* c = new_comment(0, "me", date, "this is a comment",-1);
-  push_comment(t, c);
-  print_wb(w);
-  return;
-}
-*/
