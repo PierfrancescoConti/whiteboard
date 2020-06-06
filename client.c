@@ -96,7 +96,8 @@ void client_loop(int socket_desc, char *current_user) {
       printf("\033[0m");
 
     } while (!(
-        strcmp(choice, "help") == 0 || strncmp(choice, "link ", 5) == 0 ||
+        strcmp(choice, "help") == 0 || 
+        strncmp(choice, "link ", 5) == 0 ||
         strncmp(choice, "print link ", 11) == 0 ||
         strncmp(choice, "topic ", 6) == 0 ||
         strcmp(choice, "list topics") == 0 ||
@@ -105,8 +106,10 @@ void client_loop(int socket_desc, char *current_user) {
         strncmp(choice, "reply ", 6) == 0 ||
         strncmp(choice, "delete topic ", 13) == 0 ||
         strncmp(choice, "delete user ", 12) == 0 ||
-        strcmp(choice, "subscribe") == 0 || strcmp(choice, "add thread") == 0 ||
-        strcmp(choice, "quit") == 0 || strcmp(choice, "list users") == 0));
+        strcmp(choice, "subscribe") == 0 || 
+        strcmp(choice, "add thread") == 0 ||
+        strcmp(choice, "quit") == 0 || 
+        strcmp(choice, "list users") == 0));
     ret = send(socket_desc, choice, strlen(choice), 0);
     ERROR_HELPER(ret, "Send Error");
     if (!strcmp(choice, "quit")){

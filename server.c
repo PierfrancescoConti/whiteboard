@@ -1,7 +1,7 @@
 #include "whiteboard.h"
 
 
-void notify(int shmidwb, int socket_desc, char *current_user, int mutex) {
+void notify(whiteboard* w, int socket_desc, char *current_user, int mutex) {
   int ret;
   char *buf = (char *)malloc(16 * sizeof(char));
   MALLOC_ERROR_HELPER(buf, "Malloc Error.");
@@ -20,10 +20,6 @@ void notify(int shmidwb, int socket_desc, char *current_user, int mutex) {
   if (strncmp(buf, "notify", 6) == 0) {
     ret = Pwait(mutex);
     ERROR_HELPER(ret, "Pwait Error");
-
-    whiteboard *w = (whiteboard *)shmat(shmidwb, NULL, 0);
-    w->topicshead = (topic *)shmat(w->shmidto, NULL, 0);
-    w->usershead = (user *)shmat(w->shmidus, NULL, 0);
 
     int cuid = get_user_by_usname(w, current_user)->id;
 
@@ -55,9 +51,6 @@ void notify(int shmidwb, int socket_desc, char *current_user, int mutex) {
     free(to_notify);
     free(buf);
 
-    shmdt(w->usershead);
-    shmdt(w->topicshead);
-    shmdt(w);
     ret = Vpost(mutex);
     ERROR_HELPER(ret, "Vpost Error");
   }
@@ -67,8 +60,8 @@ void notify(int shmidwb, int socket_desc, char *current_user, int mutex) {
   free(resp);
 }
 
-void app_loop(int shmidwb, int socket_desc, char *current_user, int mutex/*, int tpempty, int tpfull*/) {
-  notify(shmidwb, socket_desc, current_user, mutex);
+void app_loop(whiteboard* w, int socket_desc, char *current_user, int mutex/*, int tpempty, int tpfull*/) {
+  notify(w, socket_desc, current_user, mutex);
   int ret;
   int current_tp_id = -1;
   char *buf = (char *)malloc(1024 * sizeof(char));
@@ -97,9 +90,7 @@ void app_loop(int shmidwb, int socket_desc, char *current_user, int mutex/*, int
       } else {
         ret = Pwait(mutex);
         ERROR_HELPER(ret, "Pwait Error");
-        whiteboard *w = (whiteboard *)shmat(shmidwb, NULL, 0);
-        w->topicshead = (topic *)shmat(w->shmidto, NULL, 0);
-        w->usershead = (user *)shmat(w->shmidus, NULL, 0);
+        // ACCSESS SHARED MEMORY
         
 
         topic *t = get_topic(w, number);
@@ -123,9 +114,6 @@ void app_loop(int shmidwb, int socket_desc, char *current_user, int mutex/*, int
           strcat(resp, "\0");
           shmdt(t->commentshead);
         }
-        shmdt(w->usershead);
-        shmdt(w->topicshead);
-        shmdt(w);
         ret = Vpost(mutex);
         ERROR_HELPER(ret, "Vpost Error");
       }
@@ -135,14 +123,10 @@ void app_loop(int shmidwb, int socket_desc, char *current_user, int mutex/*, int
     else if (strncmp(buf, "list topics", 11) == 0) {
       ret = Pwait(mutex);
       ERROR_HELPER(ret, "Pwait Error");
-      whiteboard *w = (whiteboard *)shmat(shmidwb, NULL, 0);
-      w->topicshead = (topic *)shmat(w->shmidto, NULL, 0);
 
       strcpy(resp, wb_to_string(w));
       strcat(resp, "\0");
 
-      shmdt(w->topicshead);
-      shmdt(w);
       ret = Vpost(mutex);
       ERROR_HELPER(ret, "Vpost Error");
     }
@@ -157,9 +141,6 @@ void app_loop(int shmidwb, int socket_desc, char *current_user, int mutex/*, int
       } else {
         ret = Pwait(mutex);
         ERROR_HELPER(ret, "Pwait Error");
-        whiteboard *w = (whiteboard *)shmat(shmidwb, NULL, 0);
-        w->topicshead = (topic *)shmat(w->shmidto, NULL, 0);
-        w->usershead = (user *)shmat(w->shmidus, NULL, 0);
 
         if (current_tp_id == -1) {
           strcpy(
@@ -197,9 +178,6 @@ void app_loop(int shmidwb, int socket_desc, char *current_user, int mutex/*, int
             shmdt(t->commentshead);
           }
         }
-        shmdt(w->usershead);
-        shmdt(w->topicshead);
-        shmdt(w);
         ret = Vpost(mutex);
         ERROR_HELPER(ret, "Vpost Error");
       }
@@ -229,9 +207,6 @@ void app_loop(int shmidwb, int socket_desc, char *current_user, int mutex/*, int
         } else {
           ret = Pwait(mutex);
           ERROR_HELPER(ret, "Pwait Error");
-          whiteboard *w = (whiteboard *)shmat(shmidwb, NULL, 0);
-          w->topicshead = (topic *)shmat(w->shmidto, NULL, 0);
-          w->usershead = (user *)shmat(w->shmidus, NULL, 0);
 
           topic *to = get_topic(w, current_tp_id);
           topic *from = get_topic(w, nfrom);
@@ -300,9 +275,6 @@ void app_loop(int shmidwb, int socket_desc, char *current_user, int mutex/*, int
             }
             shmdt(to->commentshead);
           }
-          shmdt(w->usershead);
-          shmdt(w->topicshead);
-          shmdt(w);
           ret = Vpost(mutex);
           ERROR_HELPER(ret, "Vpost Error");
         }
@@ -326,9 +298,6 @@ void app_loop(int shmidwb, int socket_desc, char *current_user, int mutex/*, int
           int buf_len = 32768;
           ret = Pwait(mutex);
           ERROR_HELPER(ret, "Pwait Error");
-          whiteboard *w = (whiteboard *)shmat(shmidwb, NULL, 0);
-          w->topicshead = (topic *)shmat(w->shmidto, NULL, 0);
-          w->usershead = (user *)shmat(w->shmidus, NULL, 0);
 
           char buf[buf_len];
           memset(buf, 0, buf_len); // FLUSH
@@ -338,9 +307,6 @@ void app_loop(int shmidwb, int socket_desc, char *current_user, int mutex/*, int
 
           memset(buf, 0, buf_len); // FLUSH
 
-          shmdt(w->usershead);
-          shmdt(w->topicshead);
-          shmdt(w);
           ret = Vpost(mutex);
           ERROR_HELPER(ret, "Vpost Error");
         }
@@ -362,11 +328,8 @@ void app_loop(int shmidwb, int socket_desc, char *current_user, int mutex/*, int
           ret=recv(socket_desc, buf, buf_len, 0);
           ERROR_HELPER(ret, "Recv Error");
         } else {
-          //ret = Pwait(mutex);
-          //ERROR_HELPER(ret, "Pwait Error");
-          whiteboard *w = (whiteboard *)shmat(shmidwb, NULL, 0);
-          w->topicshead = (topic *)shmat(w->shmidto, NULL, 0);
-          w->usershead = (user *)shmat(w->shmidus, NULL, 0);
+          ret = Pwait(mutex);
+          ERROR_HELPER(ret, "Pwait Error");
 
           topic *t = get_topic(w, current_tp_id);
           int cuid = get_user_by_usname(w, current_user)->id;
@@ -435,11 +398,8 @@ void app_loop(int shmidwb, int socket_desc, char *current_user, int mutex/*, int
             }
             shmdt(t->commentshead);
           }
-          shmdt(w->usershead);
-          shmdt(w->topicshead);
-          shmdt(w);
-          //ret = Vpost(mutex);
-          //ERROR_HELPER(ret, "Vpost Error");
+          ret = Vpost(mutex);
+          ERROR_HELPER(ret, "Vpost Error");
         }
       } else {
         strcpy(resp,
@@ -475,9 +435,6 @@ void app_loop(int shmidwb, int socket_desc, char *current_user, int mutex/*, int
       //ERROR_HELPER(ret, "Pwait Error");
       ret = Pwait(mutex);
       ERROR_HELPER(ret, "Pwait Error");
-      whiteboard *w = (whiteboard *)shmat(shmidwb, NULL, 0);
-      w->topicshead = (topic *)shmat(w->shmidto, NULL, 0);
-      w->usershead = (user *)shmat(w->shmidus, NULL, 0);
 
       topic *last = get_last_topic(w);
       if(last->id<MAX_TOPICS-1){
@@ -498,9 +455,6 @@ void app_loop(int shmidwb, int socket_desc, char *current_user, int mutex/*, int
 
         add_topic(w, t);
 
-        shmdt(w->usershead);
-        shmdt(w->topicshead);
-        shmdt(w);
         ret = Vpost(mutex);
         ERROR_HELPER(ret, "Vpost Error");
         //ret = Vpost(tpfull);
@@ -519,9 +473,6 @@ void app_loop(int shmidwb, int socket_desc, char *current_user, int mutex/*, int
                "\033[41;1m   Wait! You can't create more topics.     "
                "                                                             \033[0m");
         strcat(resp, "\0");
-        shmdt(w->usershead);
-        shmdt(w->topicshead);
-        shmdt(w);
         ret = Vpost(mutex);
         ERROR_HELPER(ret, "Vpost Error");
       }
@@ -534,10 +485,6 @@ void app_loop(int shmidwb, int socket_desc, char *current_user, int mutex/*, int
       if (current_tp_id != -1) {
         ret = Pwait(mutex);
         ERROR_HELPER(ret, "Pwait Error");
-
-        whiteboard *w = (whiteboard *)shmat(shmidwb, NULL, 0);
-        w->topicshead = (topic *)shmat(w->shmidto, NULL, 0);
-        w->usershead = (user *)shmat(w->shmidus, NULL, 0);
 
         topic *t = get_topic(w, current_tp_id);
         // create comment and add
@@ -594,9 +541,6 @@ void app_loop(int shmidwb, int socket_desc, char *current_user, int mutex/*, int
             shmdt(t->commentshead);
           }
         }
-        shmdt(w->usershead);
-        shmdt(w->topicshead);
-        shmdt(w);
         ret = Vpost(mutex);
         ERROR_HELPER(ret, "Vpost Error");
       } else {
@@ -616,9 +560,6 @@ void app_loop(int shmidwb, int socket_desc, char *current_user, int mutex/*, int
       if (current_tp_id != -1) {
         ret = Pwait(mutex);
         ERROR_HELPER(ret, "Pwait Error");
-        whiteboard *w = (whiteboard *)shmat(shmidwb, NULL, 0);
-        w->topicshead = (topic *)shmat(w->shmidto, NULL, 0);
-        w->usershead = (user *)shmat(w->shmidus, NULL, 0);
 
         user *u = get_user_by_usname(w, current_user);
         topic *t = get_topic(w, current_tp_id);
@@ -646,9 +587,6 @@ void app_loop(int shmidwb, int socket_desc, char *current_user, int mutex/*, int
         }
 
         shmdt(t->commentshead);
-        shmdt(w->usershead);
-        shmdt(w->topicshead);
-        shmdt(w);
         ret = Vpost(mutex);
         ERROR_HELPER(ret, "Vpost Error");
       } else
@@ -667,8 +605,6 @@ void app_loop(int shmidwb, int socket_desc, char *current_user, int mutex/*, int
       else {
         ret = Pwait(mutex);
         ERROR_HELPER(ret, "Pwait Error");
-        whiteboard *w = (whiteboard *)shmat(shmidwb, NULL, 0);
-        w->topicshead = (topic *)shmat(w->shmidto, NULL, 0);
 
         topic *t = get_topic(w, number);
         if (!(t == NULL)) {
@@ -687,8 +623,6 @@ void app_loop(int shmidwb, int socket_desc, char *current_user, int mutex/*, int
               "\033[41;1m   This topic does not exist.                         "
               "                                                  \033[0m\0");
 
-        shmdt(w->topicshead);
-        shmdt(w);
         ret = Vpost(mutex);
         ERROR_HELPER(ret, "Vpost Error");
       }
@@ -704,14 +638,10 @@ void app_loop(int shmidwb, int socket_desc, char *current_user, int mutex/*, int
       } else {
         ret = Pwait(mutex);
         ERROR_HELPER(ret, "Pwait Error");
-        whiteboard *w = (whiteboard *)shmat(shmidwb, NULL, 0);
-        w->usershead = (user *)shmat(w->shmidus, NULL, 0);
 
         strcpy(resp, us_to_string(w));
         strcat(resp, "\0");
 
-        shmdt(w->usershead);
-        shmdt(w);
         ret = Vpost(mutex);
         ERROR_HELPER(ret, "Vpost Error");
       }
@@ -736,15 +666,11 @@ void app_loop(int shmidwb, int socket_desc, char *current_user, int mutex/*, int
         else {
           ret = Pwait(mutex);
           ERROR_HELPER(ret, "Pwait Error");
-          whiteboard *w = (whiteboard *)shmat(shmidwb, NULL, 0);
-          w->usershead = (user *)shmat(w->shmidus, NULL, 0);
 
           delete_user(w, userid);
           strcpy(resp, us_to_string(w));
           strcat(resp, "\0");
 
-          shmdt(w->usershead);
-          shmdt(w);
           ret = Vpost(mutex);
           ERROR_HELPER(ret, "Vpost Error");
         }
@@ -766,6 +692,10 @@ void app_loop(int shmidwb, int socket_desc, char *current_user, int mutex/*, int
 
     ret=send(socket_desc, resp, strlen(resp), 0);
     ERROR_HELPER(ret, "Send Error");
+
+
+    // SAVE WHITEBOARD
+    save_wb(w);
   }
 
   free(buf);
@@ -776,7 +706,7 @@ void app_loop(int shmidwb, int socket_desc, char *current_user, int mutex/*, int
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////// PROCESS ROUTINE///////////////////////////////////////////
 
-void *connection_handler(int shmidwb, int socket_desc,
+void *connection_handler(whiteboard* w, int socket_desc,
                          struct sockaddr_in *client_addr, int mutex/*, int tpempty, int tpfull*/) {
 
   int ret;
@@ -799,7 +729,7 @@ void *connection_handler(int shmidwb, int socket_desc,
   if (buf[0] == 'R' || buf[0] == 'r') {
     char *resp = NULL;
     while (1) {
-      resp = Register(shmidwb, socket_desc, mutex);
+      resp = Register(w, socket_desc, mutex);
       
       if(!strcmp(resp,"Too many!")){
         ret=send(socket_desc, "Users memory is full.\0", 32, 0);
@@ -831,7 +761,7 @@ void *connection_handler(int shmidwb, int socket_desc,
   ///////////////////////////////AUTH///////////////////////////////
   if (buf[0] == 'A' || buf[0] == 'a') {
 
-    current_user = Auth(shmidwb, socket_desc, mutex);
+    current_user = Auth(w, socket_desc, mutex);
     if (current_user == NULL) {
       ret=send(socket_desc, "Invalid credentials.\0", 32, 0);
       ERROR_HELPER(ret, "Send Error");
@@ -843,7 +773,7 @@ void *connection_handler(int shmidwb, int socket_desc,
     replace_char(resp, '\n', '\0');
     ret=send(socket_desc, resp, 32, 0);
     ERROR_HELPER(ret, "Send Error");
-    app_loop(shmidwb, socket_desc, current_user, mutex/*, tpempty, tpfull*/);
+    app_loop(w, socket_desc, current_user, mutex/*, tpempty, tpfull*/);
   }
   // close socket
   ret = close(socket_desc);
@@ -893,7 +823,12 @@ int main(int argc, char *argv[]) {
 
   w = create_wb(w);
 
-  shmdt(w);
+  w->topicshead = (topic *)shmat(w->shmidto, NULL, 0);
+  w->usershead = (user *)shmat(w->shmidus, NULL, 0);
+
+
+  // LOAD WHITEBOARD
+  load_wb(w);
 
   // some fields are required to be filled with 0
   struct sockaddr_in server_addr = {0};
@@ -937,17 +872,20 @@ int main(int argc, char *argv[]) {
       continue; // check for interruption by signals
     ERROR_HELPER(client_desc, "Cannot open socket for incoming connection");
 
-    printf("\033[36;4mIncoming connection accepted...\n\033[0m");
+    printf("\n\033[36;4mIncoming connection accepted...\n\033[0m");
 
     if ((processID = fork()) < 0) {
       ERROR_HELPER(processID, "Fork error.");
     } else if (processID == 0) { /* If this is the child process */
-      connection_handler(shmidwb, client_desc, client_addr, mutex/*, tpempty, tpfull*/);
+      connection_handler(w, client_desc, client_addr, mutex/*, tpempty, tpfull*/);
     } else {
       client_addr = calloc(1, sizeof(struct sockaddr_in));
       MALLOC_ERROR_HELPER(client_addr, "Calloc Error.");
     }
   }
+  shmdt(w->usershead);
+  shmdt(w->topicshead);
+  shmdt(w);
   semctl(mutex, 0, IPC_RMID); // this will never be executed
   exit(EXIT_SUCCESS); // this will never be executed
 }

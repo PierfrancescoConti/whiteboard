@@ -3,15 +3,13 @@
 // creation
 whiteboard *create_wb(whiteboard *w) {
   // users
-  if ((w->shmidus =
-           shmget(USERS_KEY, sizeof(user) * MAX_USERS, IPC_CREAT | 0666)) < 0) {
+  if ((w->shmidus = shmget(USERS_KEY, sizeof(user) * MAX_USERS, IPC_CREAT | 0666)) < 0) {
     perror("shmget");
     exit(1);
   }
 
   // topics
-  if ((w->shmidto = shmget(TOPICS_KEY, sizeof(topic) * MAX_TOPICS,
-                           IPC_CREAT | 0666)) < 0) {
+  if ((w->shmidto = shmget(TOPICS_KEY, sizeof(topic) * MAX_TOPICS, IPC_CREAT | 0666)) < 0) {
     perror("shmget");
     exit(1);
   }
@@ -634,7 +632,7 @@ int validate_user(whiteboard *w, char *us, char *pw) {
   return -1;
 }
 
-char *Auth(int shmidwb, int socket_desc, int mutex) {
+char *Auth(whiteboard* w, int socket_desc, int mutex) {
   char *s = "Please insert credentials.\nUsername: \0";
   send(socket_desc, s, 40, 0);
 
@@ -665,26 +663,20 @@ char *Auth(int shmidwb, int socket_desc, int mutex) {
   // attach to shared memory
   ret = Pwait(mutex);
   ERROR_HELPER(ret, "Pwait Error");
-  whiteboard *w = shmat(shmidwb, NULL, 0);
-  w->usershead = (user *)shmat(w->shmidus, NULL, 0);
 
   ret = validate_user(w, username, password);
   if (ret == 0) {
-    shmdt(w->usershead);
-    shmdt(w);
     printf("\033[32mAuthenticated user: \033[33;1m%s\033[0m\033[32m.\033[0m\n", username);
     ret = Vpost(mutex);
     ERROR_HELPER(ret, "Vpost Error");
     return username;
   }
-  shmdt(w->usershead);
-  shmdt(w);
   ret = Vpost(mutex);
   ERROR_HELPER(ret, "Vpost Error");
   return NULL;
 }
 
-char *Register(int shmidwb, int socket_desc, int mutex) {
+char *Register(whiteboard* w, int socket_desc, int mutex) {
   char *s = "Please insert credentials.\nUsername: \0";
   send(socket_desc, s, 40, 0);
 
@@ -716,8 +708,6 @@ char *Register(int shmidwb, int socket_desc, int mutex) {
   // attach to shared memory
   ret = Pwait(mutex);
   ERROR_HELPER(ret, "Pwait Error");
-  whiteboard *w = shmat(shmidwb, NULL, 0);
-  w->usershead = (user *)shmat(w->shmidus, NULL, 0);
 
   user *us = get_user_by_usname(w, username);
   if (us == NULL) {
@@ -746,8 +736,6 @@ char *Register(int shmidwb, int socket_desc, int mutex) {
     ERROR_HELPER(ret, "Vpost Error");
     return u->username;
   }
-  shmdt(w->usershead);
-  shmdt(w);
   ret = Vpost(mutex);
   ERROR_HELPER(ret, "Vpost Error");
   free(username);
@@ -916,4 +904,105 @@ int Vpost(int semid) {
   } else {
     return (0);
   }
+}
+
+
+
+// SAVE and LOAD
+void write_arr(int *arr, FILE * file) {
+  int i;
+  for (i = 0; i < MAX_SUBSCRIBERS && arr[i] != -1; i++) {
+    fprintf (file, "%d ", arr[i]);
+  }
+  fprintf (file, "\n");
+}
+
+void write_comments(comment *head, FILE * file){
+  fprintf (file, "%d\n%d\n%s\n%s%s",head->id,head->in_reply_to,head->status,head->author,head->comm);
+  write_arr(head->replies,file);
+  write_arr(head->seen,file);
+  
+  if (head->next == NULL) {
+    printf("-");
+    return;
+  }
+  write_comments(head->next, file);
+}
+
+void write_links(linkt *head, FILE * file) {
+  fprintf (file, "%d\n%d\n%d\n\n",head->id,head->topic_id,head->thread_id);
+  if (head->next == NULL) {
+    printf("/");
+    return;
+  }
+  write_links(head->next, file);
+}
+
+void write_topics(topic *head, FILE * file) {
+  fprintf (file, "%d\n%s\n%s\n%s",head->id,head->author,head->title,head->content);
+  write_arr(head->subscribers,file);
+  write_arr(head->viewers,file);
+  
+  // saving comments
+  char name[32];
+  sprintf(name, "saved_dumps/comments_dump%d", head->id);
+  FILE * fcm= fopen(name, "wb");
+  if (fcm != NULL) {
+    fprintf (fcm, "%d\n",head->id);
+    head->commentshead=(comment *)shmat(
+      head->shmidcm, NULL,
+      0);
+    write_comments(head->commentshead, fcm);  //skip admin
+    shmdt(head->commentshead);
+    fclose(fcm);
+  }
+
+  //saving links
+  char lname[32];
+  sprintf(lname, "saved_dumps/links_dump%d", head->id);
+  FILE * fln= fopen(lname, "wb");
+  if (fln != NULL) {
+    fprintf (fln, "%d\n\n",head->id);
+    //write_links(head->linkshead, fln);    // to fix
+    fclose(fln);
+  }
+
+  if (head->next == NULL) {
+    printf("-");
+    return;
+  }
+  
+  write_topics(head->next, file);
+}
+
+void write_users(user *head, FILE * file) {
+  fprintf (file, "%d\n%s\n%s\n\n",head->id,head->username,head->password);
+  if (head->next == NULL) {
+    printf("-");
+    return;
+  }
+  write_users(head->next, file);
+}
+
+void save_wb(whiteboard* w){
+
+  FILE * fus= fopen("saved_dumps/users_dump", "wb");
+  if (fus != NULL) {
+    write_users(w->usershead, fus);  //skip admin
+    fclose(fus);
+  }
+
+  FILE * fto= fopen("saved_dumps/topics_dump", "wb");
+  if (fto != NULL) {
+    write_topics(w->topicshead, fto);  //skip admin
+    fclose(fto);
+  }
+
+}
+
+
+
+
+void load_wb(whiteboard* w){
+  return;
 }

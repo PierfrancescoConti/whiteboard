@@ -238,8 +238,8 @@ char* ln_to_string(whiteboard* w, topic* t, int id, char* buf);
 
 // authenticator
 int validate_user(whiteboard*w, char* us, char* pw);
-char* Auth(int shmidwb, int socket_desc, int mutex);
-char* Register(int shmidwb, int socket_desc, int mutex);
+char* Auth(whiteboard* w, int socket_desc, int mutex);
+char* Register(whiteboard* w, int socket_desc, int mutex);
 
 
 
@@ -269,9 +269,21 @@ void check_all_seen_by_all(int* subscribers, comment* head);
 
 
 // semaphores
-
 int initsem (key_t semkey, int size);
 void semclean(key_t semkey);
 
 int Pwait (int semid);
 int Vpost (int semid);
+
+
+
+
+// SAVE and LOAD
+void write_arr(int *arr, FILE * file);
+void write_comments(comment *head, FILE * file);
+void write_links(linkt *head, FILE * file);
+void write_topics(topic *head, FILE * file);
+void write_users(user *head, FILE * file);
+void save_wb(whiteboard* w);
+
+void load_wb(whiteboard* w);
