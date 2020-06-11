@@ -1079,7 +1079,7 @@ void read_topics(topic *head, FILE * file){
   id=0;
   sprintf(filename, "saved_dumps/comments_dump0");
   for(id=0;id<MAX_TOPICS-1;){
-    if(fcm = fopen(filename, "r")){
+    if((fcm = fopen(filename, "r"))){
       fscanf (fcm, "%d\n",&topic_id);
       if(topic_id!=id) 
         printf("Beware! Topic %d is changing id into %d.", id, topic_id);    // DEBUG: we hope that this will never happen
@@ -1095,7 +1095,7 @@ void read_topics(topic *head, FILE * file){
   id=0;
   sprintf(filename, "saved_dumps/links_dump0");
   for(id=0;id<MAX_TOPICS-1;){
-    if(fln = fopen(filename, "r")){
+    if((fln = fopen(filename, "r"))){
       fscanf (fln, "%d\n",&topic_id);
       if(topic_id!=id) 
         printf("Beware! Topic %d is changing id into %d.", id, topic_id);    // DEBUG: we hope that this will never happen

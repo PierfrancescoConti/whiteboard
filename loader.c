@@ -131,8 +131,6 @@ int main(int argc, char* argv[]) {
     int socket_desc;
     struct sockaddr_in server_addr = {0}; // some fields are required to be filled with 0
 
-    int i;
-
     decrypt("saved_dumps/users_dump.gpg");
 
     FILE * fus= fopen("saved_dumps/users_dump", "r");
