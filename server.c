@@ -60,7 +60,7 @@ void notify(whiteboard* w, int socket_desc, char *current_user, int mutex) {
 
 // After authentication -> start main Application Loop
 void app_loop(whiteboard* w, int socket_desc, char *current_user, int mutex/*, int tpempty, int tpfull*/) {
-  notify(w, socket_desc, current_user, mutex);
+  notify(w, socket_desc, current_user, mutex);    // notify me fi any topic is changed
   int ret;
   int current_tp_id = -1;
   char *buf = (char *)malloc(1024 * sizeof(char));
@@ -82,18 +82,16 @@ void app_loop(whiteboard* w, int socket_desc, char *current_user, int mutex/*, i
     //////////////////////////////////////////////////////////////////////
     //////////////////////////// choose topic ////////////////////////////
     if (strncmp(buf, "topic ", 6) == 0) {
-      int number = get_digit(buf, 6);
+      int number = get_digit(buf, 6);   // get number of topic to visualize
       if (number == -1) {
         strcpy(resp,
                "\033[41;1m   Invalid topic                                     "
                "                                                   \033[0m\0");
       } else {
         ret = Pwait(mutex);
-        ERROR_HELPER(ret, "Pwait Error");
-        // ACCSESS SHARED MEMORY
-        
+        ERROR_HELPER(ret, "Pwait Error");        
 
-        topic *t = get_topic(w, number);
+        topic *t = get_topic(w, number);    // get topic
 
         if (t == NULL)
           strcpy(
@@ -107,7 +105,7 @@ void app_loop(whiteboard* w, int socket_desc, char *current_user, int mutex/*, i
             add_viewer(t, cuid);
             add_all_seen(t->commentshead, cuid);
             check_all_seen_by_all(t->subscribers, t->commentshead);
-            strcpy(resp, tp_to_string(t, 1));
+            strcpy(resp, tp_to_string(t, 1));   // send topic to client
           } else
             strcpy(resp, tp_to_string(t, 0));
           strcat(resp, "\0");
@@ -122,7 +120,7 @@ void app_loop(whiteboard* w, int socket_desc, char *current_user, int mutex/*, i
       ret = Pwait(mutex);
       ERROR_HELPER(ret, "Pwait Error");
 
-      strcpy(resp, wb_to_string(w));
+      strcpy(resp, wb_to_string(w));  // list all topics
       strcat(resp, "\0");
 
       ret = Vpost(mutex);
@@ -159,6 +157,7 @@ void app_loop(whiteboard* w, int socket_desc, char *current_user, int mutex/*, i
                            "                                                   "
                            "            \033[0m\0");
             } else {
+              // print the message with further info (author, status, timestamp)
               if (!strcmp(c->status, "KK")){
                 int len = sprintf(resp, "\n\n\t\033[33;1m%d\033[0m. ", c->id);
                 len += sprintf(resp + len, "\033[1m%s\033[0m\n", c->comm);
@@ -186,6 +185,7 @@ void app_loop(whiteboard* w, int socket_desc, char *current_user, int mutex/*, i
                "\033[41;1m   At first you have to choose a topic.      (usage: "
                "topic [topic#])                                    \033[0m\0");
       } else {
+        // get numbers of topic and thread
         int nth, nfrom = get_digit(buf, 5);
         if (nfrom > 9) {
           if (nfrom > 99)
@@ -204,15 +204,15 @@ void app_loop(whiteboard* w, int socket_desc, char *current_user, int mutex/*, i
           ret = Pwait(mutex);
           ERROR_HELPER(ret, "Pwait Error");
 
-          topic *to = get_topic(w, current_tp_id);
-          topic *from = get_topic(w, nfrom);
+          topic *to = get_topic(w, current_tp_id);  // get current topic
+          topic *from = get_topic(w, nfrom);        // get topic of the thread
           
           if (from == NULL) {
             strcpy(resp, "\033[41;1m   Invalid topic                           "
                          "                                                     "
                          "        \033[0m\0");
           } else {
-            comment *th = get_comment(from, nth);
+            comment *th = get_comment(from, nth);   // get the thread
             if (th == NULL) {
               strcpy(resp, "\033[41;1m   Invalid thread                      "
                              "                                                 "
@@ -245,15 +245,16 @@ void app_loop(whiteboard* w, int socket_desc, char *current_user, int mutex/*, i
                                  "                    \033[0m\0");
 
                   } else {
-                    comment *c = new_comment(last->id + 1, current_user, 0, content, -1);
+                    comment *c = new_comment(last->id + 1, current_user, 0, content, -1);      //creating the comment
                     memset(to->viewers, -1,
                            MAX_REPLIES * sizeof(int)); // clear viewers
-                    linkt *l = new_link(last->id + 1, nfrom, nth);
+                    linkt *l = new_link(last->id + 1, nfrom, nth);    // creating the relative link
                     
-                    add_link(to, l);
-                    push_comment(to, c);
+                    add_link(to, l);      // adding link to list
+                    push_comment(to, c);  // adding link to topic's threads
 
-                    add_viewer(to, cuid);
+                    // I've seen the comment and have to check its status
+                    add_viewer(to, cuid);   
                     add_all_seen(to->commentshead, cuid);
                     check_all_seen_by_all(to->subscribers, to->commentshead);
                     free(content);
@@ -292,6 +293,7 @@ void app_loop(whiteboard* w, int socket_desc, char *current_user, int mutex/*, i
           char buf[buf_len];
           memset(buf, 0, buf_len); // FLUSH
 
+          // shows to client the thread and its messages (relative to the link)
           strcpy(resp, ln_to_string(w, get_topic(w, current_tp_id), nl, buf));
           strcat(resp, "\0");
 
@@ -307,7 +309,7 @@ void app_loop(whiteboard* w, int socket_desc, char *current_user, int mutex/*, i
     else if (strncmp(buf, "reply ", 6) == 0) {
       if (current_tp_id != -1) {
 
-        int number = get_digit(buf, 6);
+        int number = get_digit(buf, 6);   // get the number of the comment to respond
 
         if (number == -1 || number == 0) {
           strcpy(
@@ -365,9 +367,9 @@ void app_loop(whiteboard* w, int socket_desc, char *current_user, int mutex/*, i
 
                 comment *c = new_comment(last->id + 1, current_user, date,
                                          content, number);
-                push_comment(t, c);
+                push_comment(t, c);     // add the message to topic's messages
 
-                add_reply(r, c->id);
+                add_reply(r, c->id);    // add id of the reply to comment's replies
 
                 memset(t->viewers, -1, MAX_SUBSCRIBERS * sizeof(int)); // clear viewers
 
@@ -386,7 +388,6 @@ void app_loop(whiteboard* w, int socket_desc, char *current_user, int mutex/*, i
               ret=recv(socket_desc, buf, buf_len, 0);
               ERROR_HELPER(ret, "Recv Error");
             }
-            //shmdt(t->commentshead);
           }
           ret = Vpost(mutex);
           ERROR_HELPER(ret, "Vpost Error");
@@ -421,25 +422,24 @@ void app_loop(whiteboard* w, int socket_desc, char *current_user, int mutex/*, i
       ret=recv(socket_desc, content, 1024, 0);
       ERROR_HELPER(ret, "Recv Error");
 
-      //ret = Pwait(tpempty);
-      //ERROR_HELPER(ret, "Pwait Error");
       ret = Pwait(mutex);
       ERROR_HELPER(ret, "Pwait Error");
 
       topic *last = get_last_topic(w);
       if(last->id<MAX_TOPICS-1){
 
-        topic *t = new_topic(last->id + 1, current_user, title, content);
+        topic *t = new_topic(last->id + 1, current_user, title, content);   // create topic
 
         int cuid = get_user_by_usname(w, current_user)->id;
 
+        // Initializing the new topic
         add_subscriber(t, cuid);
         add_subscription_entry(w, cuid, t->id);
         add_viewer(t, cuid);
         add_all_seen(t->commentshead, cuid);
         check_all_seen_by_all(t->subscribers, t->commentshead);
 
-        add_topic(w, t);
+        add_topic(w, t);    // adding topic to whiteboard
 
         ret = Vpost(mutex);
         ERROR_HELPER(ret, "Vpost Error");
@@ -470,12 +470,11 @@ void app_loop(whiteboard* w, int socket_desc, char *current_user, int mutex/*, i
         ret = Pwait(mutex);
         ERROR_HELPER(ret, "Pwait Error");
 
-        topic *t = get_topic(w, current_tp_id);
-        // create comment and add
+        topic *t = get_topic(w, current_tp_id);   // get the current topic
 
         int cuid = get_user_by_usname(w, current_user)->id;
 
-        if (!int_in_arr(t->subscribers, cuid)) {
+        if (!int_in_arr(t->subscribers, cuid)) {    // subscribed?
           ret=send(socket_desc, "subfirst\0", 10, 0);
           ERROR_HELPER(ret, "Send Error");
           ret=recv(socket_desc, resp, 1024, 0);
@@ -504,13 +503,14 @@ void app_loop(whiteboard* w, int socket_desc, char *current_user, int mutex/*, i
 
 
           comment *last = get_last_comment(t);
-          if(last->id>=MAX_COMMENTS-1){
+          if(last->id>=MAX_COMMENTS-1){   // check if exceeding memory
             free(content);
             strcpy(resp, "\033[41;1m   Current Topic's memory is full!   "
                          "                                               "
                          "                    \033[0m\0");
 
           } else {
+            // create a new thread and add it to topic
             comment *c = new_comment(last->id + 1, current_user, date, content, -1);
             push_comment(t, c);
             memset(t->viewers, -1, MAX_SUBSCRIBERS * sizeof(int)); // clear viewers
@@ -553,6 +553,7 @@ void app_loop(whiteboard* w, int socket_desc, char *current_user, int mutex/*, i
               "\033[43;1m   Already subscribed.                                "
               "                                                  \033[0m\0");
         } else {
+          //adding the user to subscribers 
           add_subscriber(t, u->id);
           add_subscription_entry(w, u->id, t->id);
           add_viewer(t, u->id);
@@ -566,7 +567,6 @@ void app_loop(whiteboard* w, int socket_desc, char *current_user, int mutex/*, i
           strcat(resp, "\0");
         }
 
-        //shmdt(t->commentshead);
         ret = Vpost(mutex);
         ERROR_HELPER(ret, "Vpost Error");
       } else
@@ -586,10 +586,10 @@ void app_loop(whiteboard* w, int socket_desc, char *current_user, int mutex/*, i
         ret = Pwait(mutex);
         ERROR_HELPER(ret, "Pwait Error");
 
-        topic *t = get_topic(w, number);
+        topic *t = get_topic(w, number);    // get the topic to delete
         if (!(t == NULL)) {
-          if (!strcmp(t->author, current_user)) {
-            delete_topic(w, number);
+          if (!strcmp(t->author, current_user)) {   // check if the user is the author
+            delete_topic(w, number);    // if so, delete
             strcpy(resp, "\033[42;1m   Deleted successfully.                   "
                          "                                                     "
                          "        \033[0m\0");
@@ -619,7 +619,7 @@ void app_loop(whiteboard* w, int socket_desc, char *current_user, int mutex/*, i
         ret = Pwait(mutex);
         ERROR_HELPER(ret, "Pwait Error");
 
-        strcpy(resp, us_to_string(w));
+        strcpy(resp, us_to_string(w));    // send the list of users
         strcat(resp, "\0");
 
         ret = Vpost(mutex);
@@ -647,8 +647,8 @@ void app_loop(whiteboard* w, int socket_desc, char *current_user, int mutex/*, i
           ret = Pwait(mutex);
           ERROR_HELPER(ret, "Pwait Error");
 
-          delete_user(w, userid);
-          strcpy(resp, us_to_string(w));
+          delete_user(w, userid);     // delete a user
+          strcpy(resp, us_to_string(w));    // and see again users
           strcat(resp, "\0");
 
           ret = Vpost(mutex);
@@ -662,7 +662,7 @@ void app_loop(whiteboard* w, int socket_desc, char *current_user, int mutex/*, i
       strcpy(resp, "\n                                        \033[43;1m      Goodbye!      \033[0m\n\n");
       ret=send(socket_desc, resp, strlen(resp), 0);
       ERROR_HELPER(ret, "Send Error");
-      break;
+      break;      // goodbye
     }
     //////////////////////////////////////////////////////////////
     //////////////////////////// help ////////////////////////////
@@ -670,15 +670,18 @@ void app_loop(whiteboard* w, int socket_desc, char *current_user, int mutex/*, i
       strcpy(resp, "help\0");
     }
 
-    ret=send(socket_desc, resp, strlen(resp), 0);
+    ret=send(socket_desc, resp, strlen(resp), 0);   // send any response from above commands
     ERROR_HELPER(ret, "Send Error");
+
     // SAVE WHITEBOARD
     decryptall("saved_dumps");
     rmenc("saved_dumps");
     
     ret = Pwait(mutex);
     ERROR_HELPER(ret, "Pwait Error");
+
     save_wb(w);                       // saving the whiteboard
+
     ret = Vpost(mutex);
     ERROR_HELPER(ret, "Vpost Error");
 
@@ -727,7 +730,7 @@ void *connection_handler(whiteboard* w, int socket_desc,
     while (1) {
       resp = Register(w, socket_desc, mutex);
       
-      if(!strcmp(resp,"Too many!")){
+      if(!strcmp(resp,"Too many!")){    // no more space for other users
         ret=send(socket_desc, "Users memory is full.\0", 32, 0);
         ERROR_HELPER(ret, "Send Error");
         // close socket
@@ -736,7 +739,7 @@ void *connection_handler(whiteboard* w, int socket_desc,
         free(buf);
         free(client_addr);      // do not forget to free this buffer!
         exit(1);
-      } else if (!strcmp(resp,"NULL")){
+      } else if (!strcmp(resp,"NULL")){     // user already exists
         ret=send(socket_desc, "Username already taken.\0", 32, 0);
         ERROR_HELPER(ret, "Send Error");
         // close socket
@@ -749,7 +752,7 @@ void *connection_handler(whiteboard* w, int socket_desc,
       else
           break;
     }
-    strcpy(resp, "Registration Done.\0");
+    strcpy(resp, "Registration Done.\0");     // user added
     ret=send(socket_desc, resp, 32, 0);
     ERROR_HELPER(ret, "Send Error");
     
@@ -759,7 +762,7 @@ void *connection_handler(whiteboard* w, int socket_desc,
   if (buf[0] == 'A' || buf[0] == 'a') {
 
     current_user = Auth(w, socket_desc, mutex);
-    if (current_user == NULL) {
+    if (current_user == NULL) {     // not existing user or wrong password
       ret=send(socket_desc, "Invalid credentials.\0", 32, 0);
       ERROR_HELPER(ret, "Send Error");
       free(buf);
@@ -770,6 +773,7 @@ void *connection_handler(whiteboard* w, int socket_desc,
     replace_char(resp, '\n', '\0');
     ret=send(socket_desc, resp, 32, 0);
     ERROR_HELPER(ret, "Send Error");
+    // the user is authenticated and it can start the main Application Loop
     app_loop(w, socket_desc, current_user, mutex/*, tpempty, tpfull*/);
   }
   // close socket
@@ -793,11 +797,11 @@ int main(int argc, char *argv[]) {
   //key_t tpemptysemkey = 0x300;
   int mutex/*, tpfull, tpempty*/;
 
-  semclean(semkey);
+  semclean(semkey);     // cleaning already existing semaphores
   //semclean(tpfullsemkey);     //NOT NECESSARY!!!
   //semclean(tpemptysemkey);
 
-  mutex = initsem(semkey,1);
+  mutex = initsem(semkey,1);    // initialization of mutex
   ERROR_HELPER(mutex,"InitSem Error");
 
   //tpfull = initsem(tpfullsemkey,0);
@@ -818,8 +822,9 @@ int main(int argc, char *argv[]) {
   // attach to shared memory  // no needed to protect with semaphores
   whiteboard *w = (whiteboard *)shmat(shmidwb, NULL, 0);
 
-  w = create_wb(w);
+  w = create_wb(w);   // create and initialize the whiteboard
 
+  // opening shared memories from father process
   w->topicshead = (topic *)shmat(w->shmidto, NULL, 0);
   w->usershead = (user *)shmat(w->shmidus, NULL, 0);
 
@@ -867,7 +872,7 @@ int main(int argc, char *argv[]) {
 
   ret = Pwait(mutex);
   ERROR_HELPER(ret, "Pwait Error");
-  load_wb(w);
+  load_wb(w);                                // loading
   ret = Vpost(mutex);
   ERROR_HELPER(ret, "Vpost Error");
 
@@ -893,9 +898,10 @@ int main(int argc, char *argv[]) {
       MALLOC_ERROR_HELPER(client_addr, "Calloc Error.");
     }
   }
+  // this will never be executed
   shmdt(w->usershead);
   shmdt(w->topicshead);
   shmdt(w);
-  semctl(mutex, 0, IPC_RMID); // this will never be executed
-  exit(EXIT_SUCCESS); // this will never be executed
+  semctl(mutex, 0, IPC_RMID); 
+  exit(EXIT_SUCCESS);
 }

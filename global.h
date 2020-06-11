@@ -26,3 +26,6 @@
 #define SERVER_ADDRESS  "127.0.0.1"
 #define SERVER_COMMAND  "QUIT"
 #define SERVER_PORT     4444
+
+#define SUPERSECRET_KEY "key"
+

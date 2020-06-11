@@ -11,7 +11,6 @@
 #include "global.h"
 #include <ctype.h>
 
-#define SUPERSECRET_KEY "key"
 
 
 // string management

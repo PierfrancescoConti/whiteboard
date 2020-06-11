@@ -2,11 +2,11 @@
 #include <string.h>
 #include <stdlib.h>
 #include <time.h>
-#include <dirent.h>
+#include <dirent.h>     // work with directories
 #include <errno.h>
 #include <unistd.h>
-#include <arpa/inet.h>  // htons() and inet_addr()
-#include <netinet/in.h> // struct sockaddr_in
+#include <arpa/inet.h>
+#include <netinet/in.h>
 #include <sys/socket.h>
 #include <ctype.h>
 #include <sys/types.h>
@@ -31,8 +31,6 @@
 
 #define USERS_KEY 19000
 #define TOPICS_KEY 20000
-
-#define SUPERSECRET_KEY "key"
 
 
 
@@ -67,9 +65,6 @@
 //            (usando choose topic dopo essersi sottoscritti) al fine di dare un senso allo status del commento
 //      - DONE: during subscription CHECK if already subscribed
 //      - DONE: se il post è mio, sono automaticamente un subscriber (e un viewer)
-//      - 
-//      - reorder users (read users)
-//      - insert timestamp to read comments
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
@@ -84,7 +79,7 @@ typedef struct sp{              // to understand a user is subscribed to which t
 } subscribers_pool;
 
 
-typedef struct cm{
+typedef struct cm{              // comment
   int id;
   int in_reply_to;    // -1 if none (isThread)
   int replies[MAX_REPLIES];
@@ -103,14 +98,14 @@ typedef struct ln{      // link to another thread
   struct ln* next;
 } linkt;
 
-typedef struct usr{
+typedef struct usr{              // user
   int id;
   char username[32];
   char password[32];
   struct usr* next;
 } user;
 
-typedef struct tp{
+typedef struct tp{              // topic
   int id;
   int shmidcm;
   time_t timestamp;
@@ -124,7 +119,7 @@ typedef struct tp{
   struct tp* next;
 } topic;
 
-typedef struct wbadmin{
+typedef struct wbadmin{              // whiteboard
   int shmidto;
   int shmidus;
   topic* topicshead;
@@ -153,10 +148,10 @@ void append_user(user* head, user* u);        // appends a user to a linked list
 void add_user(whiteboard* w, user* u);
 
 void append_comment(comment* head, comment* c);
-void push_comment(topic* t, comment* c);
+void push_comment(topic* t, comment* c);   // adds a new comment to a topic
 
 void append_link(linkt* head, linkt* l);
-void add_link(topic* t, linkt* l);
+void add_link(topic* t, linkt* l);   // adds a new link to a topic
 
 void add_subscriber(topic* t, int userid);    // add a user to subscribers list
 void add_viewer(topic* t,int uid);            // a user have seen all messages of this topics
@@ -208,50 +203,50 @@ int* get_list_from_pool(whiteboard* w, int uid);
 
 // printers
 void here_all_topics(topic* head);
-void print_wb(whiteboard* w);
+void print_wb(whiteboard* w);       // prints all topics
 
 void here_all_comments(comment* head);
-void print_tp(topic* t);
+void print_tp(topic* t);            // prints all comments
 
 void here_all_users(user* head);  //DEBUG
-void print_users(whiteboard* w);  //DEBUG
+void print_users(whiteboard* w);  //DEBUG   // prints all users
 
-void print_replies(comment* r);
-void print_arr(int* arr);
-void print_pool(whiteboard* w);
+void print_replies(comment* r);   // prints all reply IDs about a comment
+void print_arr(int* arr);         // prints an array of integers
+void print_pool(whiteboard* w);   // prints subscribers pool 
 
 
 
 
 // to string          // used to send to the client the output of the command
 char* here_all_topics_to_string(topic* head, char* buf);
-char* wb_to_string(whiteboard* w);
+char* wb_to_string(whiteboard* w);      // preparing all topics to be sent to the client
 
 char* here_all_users_to_string(user* head, char* buf);
-char* us_to_string(whiteboard* w);
+char* us_to_string(whiteboard* w);      // preparing all users to be sent to the client
 
 char* here_all_comments_to_string(topic* t, comment* head, char* buf, int* done, int subscribed);
-char* tp_to_string(topic* t, int subscribed);
+char* tp_to_string(topic* t, int subscribed);      // preparing all comments of a topic to be sent to the client
 
 char* child_to_string(topic* t, comment* child, char* buf, int* done, int level);
-char* cm_to_string(topic* t, comment* head, char* buf, int* done);
+char* cm_to_string(topic* t, comment* head, char* buf, int* done);      // preparing a comment to be sent to the client
 
 linkt* find_link(linkt* head, int id);
-char* ln_to_string(whiteboard* w, topic* t, int id, char* buf);
+char* ln_to_string(whiteboard* w, topic* t, int id, char* buf);      // preparing a links to be sent to the client
 
 
 
 
 // authenticator
-int validate_user(whiteboard*w, char* us, char* pw);
-char* Auth(whiteboard* w, int socket_desc, int mutex);
-char* Register(whiteboard* w, int socket_desc, int mutex);
+int validate_user(whiteboard*w, char* us, char* pw);        // existing user? right credentials?
+char* Auth(whiteboard* w, int socket_desc, int mutex);      // Authentication
+char* Register(whiteboard* w, int socket_desc, int mutex);  // Registration
 
 
 
 
 // string management
-char* replace_char(char* str, char find, char replace);
+char* replace_char(char* str, char find, char replace);   // replaces the first occurrence of a character with another inside a string
 
 
 //utils
@@ -278,8 +273,8 @@ void check_all_seen_by_all(int* subscribers, comment* head);
 int initsem (key_t semkey, int size);
 void semclean(key_t semkey);
 
-int Pwait (int semid);
-int Vpost (int semid);
+int Pwait (int semid);    // wait
+int Vpost (int semid);    // post
 
 
 
@@ -290,22 +285,22 @@ void write_comments(comment *head, FILE * file);
 void write_links(linkt *head, FILE * file);
 void write_topics(topic *head, FILE * file);
 void write_users(user *head, FILE * file);
-void save_wb(whiteboard* w);
+void save_wb(whiteboard* w);      // writes the whiteboard inside files
 
 int* read_arr(FILE* file, int* arr);
 void read_comments(comment *head, FILE * file);
 void read_links(linkt *head, FILE * file);
 void read_topics(topic *head, FILE * file);
-void load_wb(whiteboard* w);
+void load_wb(whiteboard* w);      // reads files to reload the whiteboard
 
 
-// encryption/decryption
-void encrypt(char* filename);
-void decrypt(char* filename);
+// encryption/decryption    (this affects a lot performances)
+void encrypt(char* filename);   // encrypts a file (PGP)
+void decrypt(char* filename);   // decrypts a PGP file
 
-void encryptall(char* folder);
-void decryptall(char* folder);
+void encryptall(char* folder);  // encrypts all files inside a folder
+void decryptall(char* folder);  // decrypts all files inside a folder
 
-void rmenc(char* folder);
-void rmdec(char* folder);
+void rmenc(char* folder);       // removes all encrypted files within a folder
+void rmdec(char* folder);       // removes all unencrypted files within a folder
 

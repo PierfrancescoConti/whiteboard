@@ -1,5 +1,9 @@
 #include "whiteboard.h"
 
+
+// to understand the following functions, please refer to whiteboard.h //
+
+
 // creation
 whiteboard *create_wb(whiteboard *w) {
   // users
