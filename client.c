@@ -225,8 +225,6 @@ void client_loop(int socket_desc, char *current_user) {
   exit(EXIT_SUCCESS);
 }
 
-// TODO: rimpiazzare tutte le funzioni ad alto livello che non le vogliamo ->
-// tipo fgets
 int main(int argc, char *argv[]) {
   char init[16];
   int ret = 0;

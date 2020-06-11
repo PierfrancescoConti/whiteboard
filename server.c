@@ -10,9 +10,8 @@ void notify(whiteboard* w, int socket_desc, char *current_user, int mutex) {
   MALLOC_ERROR_HELPER(resp, "Malloc Error.");
   ret=recv(socket_desc, buf, buf_len, 0);
   ERROR_HELPER(ret, "Recv Error");
-  int *to_notify = (int *)malloc(sizeof(int) * MAX_TOPICS);
+  int *to_notify = (int *)malloc(sizeof(int) * MAX_TOPICS);   // array to fill with TOPIC_IDs to notify to the current user
   MALLOC_ERROR_HELPER(to_notify, "Malloc Error.");
-
   memset(to_notify, -1, MAX_TOPICS * sizeof(int));
 
   ////////////////////////////////////////////////////////////////
@@ -24,16 +23,15 @@ void notify(whiteboard* w, int socket_desc, char *current_user, int mutex) {
     int cuid = get_user_by_usname(w, current_user)->id;
 
     int *listid = get_list_from_pool(w, cuid); // topics subscribed from current_user
-    
     int j, i = 0;
     for (j = 0; j < MAX_TOPICS && listid[j] != -1; j++) {
       topic *t = get_topic(w, listid[j]);
-      if (!int_in_arr(t->viewers, cuid)) {
+      if (!int_in_arr(t->viewers, cuid)) {    // is this topic changed? -> notify!
         to_notify[i] = listid[j];
         i++;
       }
     }
-
+    // Notifications
     if (to_notify[0] != -1) {
       strcpy(resp, "\033[103;1m\033[30;1m   Some of the topics you follow are "
                    "updated! These are:");
@@ -60,6 +58,7 @@ void notify(whiteboard* w, int socket_desc, char *current_user, int mutex) {
   free(resp);
 }
 
+// After authentication -> start main Application Loop
 void app_loop(whiteboard* w, int socket_desc, char *current_user, int mutex/*, int tpempty, int tpfull*/) {
   notify(w, socket_desc, current_user, mutex);
   int ret;
@@ -73,6 +72,7 @@ void app_loop(whiteboard* w, int socket_desc, char *current_user, int mutex/*, i
   size_t resp_len = 32768;
 
   while (1) {
+
     memset(buf, 0, buf_len);   // FLUSH
     memset(resp, 0, resp_len); // FLUSH
 
@@ -101,7 +101,6 @@ void app_loop(whiteboard* w, int socket_desc, char *current_user, int mutex/*, i
               "\033[41;1m   Invalid topic                                      "
               "                                                  \033[0m\0");
         else {
-          t->commentshead = (comment *)shmat(t->shmidcm, NULL, 0);
           int cuid = get_user_by_usname(w, current_user)->id;
           current_tp_id = t->id; // important!
           if (int_in_arr(t->subscribers, cuid)) {
@@ -112,7 +111,6 @@ void app_loop(whiteboard* w, int socket_desc, char *current_user, int mutex/*, i
           } else
             strcpy(resp, tp_to_string(t, 0));
           strcat(resp, "\0");
-          shmdt(t->commentshead);
         }
         ret = Vpost(mutex);
         ERROR_HELPER(ret, "Vpost Error");
@@ -155,7 +153,6 @@ void app_loop(whiteboard* w, int socket_desc, char *current_user, int mutex/*, i
                          "(usage: subscribe)                                   "
                          "               \033[0m\0");
           } else {
-            t->commentshead = (comment *)shmat(t->shmidcm, NULL, 0);
             comment *c = get_comment(t, number);
             if (c == NULL) {
               strcpy(resp, "\033[41;1m   Invalid comment                       "
@@ -175,7 +172,6 @@ void app_loop(whiteboard* w, int socket_desc, char *current_user, int mutex/*, i
                 len += sprintf(resp + len, "\n\n   \033[34;1mK\033[0m: \033[1mPublished, but not seen by all subscribers. \033[0m\n\n   Date: \033[33;1m%s\033[0m\n\n", asctime(localtime(&(c->timestamp))));
               }
             }
-            shmdt(t->commentshead);
           }
         }
         ret = Vpost(mutex);
@@ -216,23 +212,18 @@ void app_loop(whiteboard* w, int socket_desc, char *current_user, int mutex/*, i
                          "                                                     "
                          "        \033[0m\0");
           } else {
-            from->commentshead = (comment *)shmat(from->shmidcm, NULL, 0);
             comment *th = get_comment(from, nth);
             if (th == NULL) {
               strcpy(resp, "\033[41;1m   Invalid thread                      "
                              "                                                 "
                              "              \033[0m\0");
-              shmdt(from->commentshead);
             } else {
               if (th->in_reply_to != -1) {
-                shmdt(from->commentshead);
                 strcpy(resp, "\033[41;1m   Invalid thread: this is a comment     "
                            "                                                   "
                            "            \033[0m\0");
                 
               } else {
-                shmdt(from->commentshead);
-                to->commentshead = (comment *)shmat(to->shmidcm, NULL, 0);
                 int cuid = get_user_by_usname(w, current_user)->id;
                 if (!int_in_arr(to->subscribers, cuid)) {
                   strcpy(resp, "\033[41;1m   You should subscribe to topic "
@@ -243,7 +234,7 @@ void app_loop(whiteboard* w, int socket_desc, char *current_user, int mutex/*, i
                   MALLOC_ERROR_HELPER(content, "Malloc Error.");
 
                   sprintf(content,
-                          "\033[33;1mLINK TO THREAD %d FROM TOPIC %d.\033[0m",
+                          "\033[33;1mLINK TO THREAD %d FROM TOPIC %d.\033[0m\n",
                           nth, nfrom);
                   strcat(content, "\0");
                   comment *last = get_last_comment(to);
@@ -258,7 +249,7 @@ void app_loop(whiteboard* w, int socket_desc, char *current_user, int mutex/*, i
                     memset(to->viewers, -1,
                            MAX_REPLIES * sizeof(int)); // clear viewers
                     linkt *l = new_link(last->id + 1, nfrom, nth);
-
+                    
                     add_link(to, l);
                     push_comment(to, c);
 
@@ -273,7 +264,6 @@ void app_loop(whiteboard* w, int socket_desc, char *current_user, int mutex/*, i
                 }
               }
             }
-            shmdt(to->commentshead);
           }
           ret = Vpost(mutex);
           ERROR_HELPER(ret, "Vpost Error");
@@ -318,7 +308,8 @@ void app_loop(whiteboard* w, int socket_desc, char *current_user, int mutex/*, i
       if (current_tp_id != -1) {
 
         int number = get_digit(buf, 6);
-        if (number == -1) {
+
+        if (number == -1 || number == 0) {
           strcpy(
               resp,
               "\033[41;1m   Invalid comment                                    "
@@ -344,7 +335,6 @@ void app_loop(whiteboard* w, int socket_desc, char *current_user, int mutex/*, i
                          "               \033[0m\0");
           } else {
             // create comment and add
-            t->commentshead = (comment *)shmat(t->shmidcm, NULL, 0);
             comment *r = get_comment(t, number); // check if number (reply_id) exists
             if (!(r == NULL)) {
               // release semaphore while waiting for user input
@@ -396,7 +386,7 @@ void app_loop(whiteboard* w, int socket_desc, char *current_user, int mutex/*, i
               ret=recv(socket_desc, buf, buf_len, 0);
               ERROR_HELPER(ret, "Recv Error");
             }
-            shmdt(t->commentshead);
+            //shmdt(t->commentshead);
           }
           ret = Vpost(mutex);
           ERROR_HELPER(ret, "Vpost Error");
@@ -438,27 +428,21 @@ void app_loop(whiteboard* w, int socket_desc, char *current_user, int mutex/*, i
 
       topic *last = get_last_topic(w);
       if(last->id<MAX_TOPICS-1){
-        time_t date;
-        time(&date);
 
-        topic *t = new_topic(last->id + 1, current_user, title, content, date);
+        topic *t = new_topic(last->id + 1, current_user, title, content);
 
         int cuid = get_user_by_usname(w, current_user)->id;
 
         add_subscriber(t, cuid);
         add_subscription_entry(w, cuid, t->id);
         add_viewer(t, cuid);
-        t->commentshead = (comment *)shmat(t->shmidcm, NULL, 0);
         add_all_seen(t->commentshead, cuid);
         check_all_seen_by_all(t->subscribers, t->commentshead);
-        shmdt(t->commentshead);
 
         add_topic(w, t);
 
         ret = Vpost(mutex);
         ERROR_HELPER(ret, "Vpost Error");
-        //ret = Vpost(tpfull);
-        //ERROR_HELPER(ret, "Vpost Error");
 
         free(content);
         free(title);
@@ -518,12 +502,10 @@ void app_loop(whiteboard* w, int socket_desc, char *current_user, int mutex/*, i
           time_t date;
           time(&date);
 
-          t->commentshead = (comment *)shmat(t->shmidcm, NULL, 0);
 
           comment *last = get_last_comment(t);
           if(last->id>=MAX_COMMENTS-1){
             free(content);
-            shmdt(t->commentshead);
             strcpy(resp, "\033[41;1m   Current Topic's memory is full!   "
                          "                                               "
                          "                    \033[0m\0");
@@ -538,7 +520,6 @@ void app_loop(whiteboard* w, int socket_desc, char *current_user, int mutex/*, i
                 "                                                  \033[0m\0");
 
             free(content);
-            shmdt(t->commentshead);
           }
         }
         ret = Vpost(mutex);
@@ -563,7 +544,6 @@ void app_loop(whiteboard* w, int socket_desc, char *current_user, int mutex/*, i
 
         user *u = get_user_by_usname(w, current_user);
         topic *t = get_topic(w, current_tp_id);
-        t->commentshead = (comment *)shmat(t->shmidcm, NULL, 0);
         int cuid = get_user_by_usname(w, current_user)->id;
 
         // CHECK if already subscribed
@@ -586,7 +566,7 @@ void app_loop(whiteboard* w, int socket_desc, char *current_user, int mutex/*, i
           strcat(resp, "\0");
         }
 
-        shmdt(t->commentshead);
+        //shmdt(t->commentshead);
         ret = Vpost(mutex);
         ERROR_HELPER(ret, "Vpost Error");
       } else
@@ -692,10 +672,20 @@ void app_loop(whiteboard* w, int socket_desc, char *current_user, int mutex/*, i
 
     ret=send(socket_desc, resp, strlen(resp), 0);
     ERROR_HELPER(ret, "Send Error");
-
-
     // SAVE WHITEBOARD
-    save_wb(w);
+    decryptall("saved_dumps");
+    rmenc("saved_dumps");
+    
+    ret = Pwait(mutex);
+    ERROR_HELPER(ret, "Pwait Error");
+    save_wb(w);                       // saving the whiteboard
+    ret = Vpost(mutex);
+    ERROR_HELPER(ret, "Vpost Error");
+
+    encryptall("saved_dumps");
+    rmdec("saved_dumps");
+    // Saving complete!
+
   }
 
   free(buf);
@@ -720,9 +710,15 @@ void *connection_handler(whiteboard* w, int socket_desc,
   // parse client IP address and port
   char client_ip[INET_ADDRSTRLEN];
   inet_ntop(AF_INET, &(client_addr->sin_addr), client_ip, INET_ADDRSTRLEN);
+
+  
+
   // read message from client
   ret=recv(socket_desc, buf, buf_len, 0);
   ERROR_HELPER(ret, "Recv Error");
+  
+
+
 
   //////////////////////////////////////////////////////////////////////
   ///////////////////////////////REGISTER///////////////////////////////
@@ -756,6 +752,7 @@ void *connection_handler(whiteboard* w, int socket_desc,
     strcpy(resp, "Registration Done.\0");
     ret=send(socket_desc, resp, 32, 0);
     ERROR_HELPER(ret, "Send Error");
+    
   }
   //////////////////////////////////////////////////////////////////
   ///////////////////////////////AUTH///////////////////////////////
@@ -827,8 +824,8 @@ int main(int argc, char *argv[]) {
   w->usershead = (user *)shmat(w->shmidus, NULL, 0);
 
 
-  // LOAD WHITEBOARD
-  load_wb(w);
+
+  
 
   // some fields are required to be filled with 0
   struct sockaddr_in server_addr = {0};
@@ -864,6 +861,19 @@ int main(int argc, char *argv[]) {
 
   printf("Server in listening mode...\n");
 
+  // LOAD WHITEBOARD
+  decryptall("saved_dumps");
+  system("./loader &");
+
+  ret = Pwait(mutex);
+  ERROR_HELPER(ret, "Pwait Error");
+  load_wb(w);
+  ret = Vpost(mutex);
+  ERROR_HELPER(ret, "Vpost Error");
+
+  rmdec("saved_dumps");
+  // Loading complete!
+
   while (1) {
     // accept incoming connection
     client_desc = accept(socket_desc, (struct sockaddr *)client_addr,
@@ -872,7 +882,7 @@ int main(int argc, char *argv[]) {
       continue; // check for interruption by signals
     ERROR_HELPER(client_desc, "Cannot open socket for incoming connection");
 
-    printf("\n\033[36;4mIncoming connection accepted...\n\033[0m");
+    //printf("\n\033[36;4mIncoming connection accepted...\n\033[0m");
 
     if ((processID = fork()) < 0) {
       ERROR_HELPER(processID, "Fork error.");

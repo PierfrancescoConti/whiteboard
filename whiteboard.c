@@ -14,11 +14,9 @@ whiteboard *create_wb(whiteboard *w) {
     exit(1);
   }
   w->topicshead = (topic *)shmat(w->shmidto, NULL, 0);
-  time_t date;
-  time(&date);
   *(w->topicshead) =
       *(new_topic(0, "admin\0", "First topic.\n",
-                  "Hello, world! This is my first topic.\n", date));
+                  "Hello, world! This is my first topic.\n"));
   shmdt(w->topicshead);
   w->usershead = (user *)shmat(w->shmidus, NULL, 0);
   *(w->usershead) = *(new_user(0, "admin\0", "admin\0"));
@@ -60,7 +58,7 @@ linkt *new_link(int id, int topic_id, int thread_id) {
   return l;
 }
 
-topic *new_topic(int id, char *author, char *title, char *content, time_t timestamp) {
+topic *new_topic(int id, char *author, char *title, char *content) {
   topic *t = (topic *)malloc(sizeof(topic));  //freed after addition
   MALLOC_ERROR_HELPER(t, "Malloc Error.");
   t->id = id;
@@ -70,21 +68,10 @@ topic *new_topic(int id, char *author, char *title, char *content, time_t timest
 
   strncpy(t->content, content, 1024);
 
-  t->timestamp = timestamp;
-  if ((t->shmidcm = shmget(30000 + (t->id * MAX_COMMENTS),
-                           sizeof(comment) * MAX_COMMENTS, IPC_CREAT | 0666)) <
-      0) {
-    perror("shmget");
-    exit(1);
-  }
-  t->commentshead = (comment *)shmat(
-      t->shmidcm, NULL,
-      0); // manage comments with shared memory  //posso creare la key dello shmidcm con una operazione -> 30000+(t->id*MAX_COMMENTS)
   time_t date;
   time(&date);
   *(t->commentshead) = *(new_comment(0, "admin\0", date, "Please, comment below.\n",
                     -1)); // First comment is mine!
-  shmdt(t->commentshead);
   t->next = NULL;
   memset(t->subscribers, -1, MAX_REPLIES * sizeof(int));
   memset(t->viewers, -1, MAX_REPLIES * sizeof(int));
@@ -127,7 +114,7 @@ void add_topic(whiteboard *w, topic *t) { append_topic(w->topicshead, t); }
 void append_user(user *head, user *u) {
   if (head->next == NULL) {
     *(head + 1) = *u;
-    free(u);
+    //free(u);
     head->next = head + 1;
   } else
     return append_user(head->next, u);
@@ -161,7 +148,12 @@ void append_link(linkt *head, linkt *l) {
     return append_link(head->next, l);
 }
 
-void add_link(topic *t, linkt *l) { return append_link(t->linkshead, l); }
+void add_link(topic *t, linkt *l) { 
+  if(l->id >= 128 || l->id < 0){
+    return;
+  }
+  return append_link(t->linkshead, l); 
+}
 
 void add_subscriber(topic *t, int userid) {
   if (int_in_arr(t->subscribers, userid))
@@ -206,6 +198,7 @@ void add_all_seen(comment *head, int uid) {
 }
 
 void autp(subscribers_pool *head, int uid) {
+  
   if (uid >= MAX_USERS) {
     printf("Too much users.\n");
     return;
@@ -550,7 +543,6 @@ char *child_to_string(topic *t, comment *child, char *buf, int *done,
   len += sprintf(buf + len, "\n");
   strcat(buf, "----------------------------------------------------------------"
               "----------------------------------------\n");
-
   // add status?
   // for child_to_string();
   done = add_to_arr(done, child->id, MAX_COMMENTS);
@@ -573,7 +565,6 @@ char *cm_to_string(topic *t, comment *head, char *buf, int *done) {
   len += sprintf(buf + len, "\t\033[1;34m%s\033[0m\n\n", head->status);
   strcat(buf, "----------------------------------------------------------------"
               "----------------------------------------\n");
-
 
   done = add_to_arr(done, head->id, MAX_COMMENTS);
 
@@ -601,12 +592,10 @@ char *ln_to_string(whiteboard *w, topic *t, int id, char *buf) {
            "                                               \033[0m\0");
   } else {
     topic *gt = get_topic(w, l->topic_id);
-    gt->commentshead = (comment *)shmat(gt->shmidcm, NULL, 0);
     comment *gc = get_comment(gt, l->thread_id);
     int done[MAX_COMMENTS];
     memset(done, -1, MAX_COMMENTS * sizeof(int));
     buf = cm_to_string(gt, gc, buf, done);
-    shmdt(t->commentshead);
   }
   return buf;
 }
@@ -640,6 +629,7 @@ char *Auth(whiteboard* w, int socket_desc, int mutex) {
   MALLOC_ERROR_HELPER(username, "Malloc Error.");
   size_t b_len = 32;
 
+  memset(username, 0, b_len); // FLUSH
   int ret=recv(socket_desc, username, b_len, 0);
   ERROR_HELPER(ret, "Recv Error");
 
@@ -652,6 +642,7 @@ char *Auth(whiteboard* w, int socket_desc, int mutex) {
 
   char *password = (char *)malloc(32 * sizeof(char));
   MALLOC_ERROR_HELPER(password, "Malloc Error.");
+  memset(password, 0, b_len); // FLUSH
   ret=recv(socket_desc, password, b_len, 0);
   ERROR_HELPER(ret, "Recv Error");
 
@@ -666,9 +657,10 @@ char *Auth(whiteboard* w, int socket_desc, int mutex) {
 
   ret = validate_user(w, username, password);
   if (ret == 0) {
-    printf("\033[32mAuthenticated user: \033[33;1m%s\033[0m\033[32m.\033[0m\n", username);
+    printf("\n\033[32mAuthenticated user: \033[33;1m%s\033[0m\033[32m.\033[0m\n", username);
     ret = Vpost(mutex);
     ERROR_HELPER(ret, "Vpost Error");
+    
     return username;
   }
   ret = Vpost(mutex);
@@ -683,6 +675,8 @@ char *Register(whiteboard* w, int socket_desc, int mutex) {
   char *username = (char *)malloc(sizeof(char) * 32);
   MALLOC_ERROR_HELPER(username, "Malloc Error.");
   size_t b_len = 32;
+
+  memset(username, 0, b_len); // FLUSH
   
   int ret=recv(socket_desc, username, b_len, 0);
   ERROR_HELPER(ret, "Recv Error");
@@ -697,6 +691,7 @@ char *Register(whiteboard* w, int socket_desc, int mutex) {
   char *password = (char *)malloc(sizeof(char) * 32);
   MALLOC_ERROR_HELPER(password, "Malloc Error.");
 
+  memset(password, 0, b_len); // FLUSH
   ret=recv(socket_desc, password, b_len, 0);
   ERROR_HELPER(ret, "Recv Error");
 
@@ -718,8 +713,6 @@ char *Register(whiteboard* w, int socket_desc, int mutex) {
     } else if(last->id>=MAX_USERS-1){
       free(username);
       free(password);
-      shmdt(w->usershead);
-      shmdt(w);
       ret = Vpost(mutex);
       ERROR_HELPER(ret, "Vpost Error");
       return "Too many!";
@@ -727,11 +720,9 @@ char *Register(whiteboard* w, int socket_desc, int mutex) {
       u = new_user(last->id + 1, username, password);
     }
     add_user(w, u); // check return?
-    printf("\033[32mRegistered user: \033[33;1m%s\033[0m\033[32m.\033[0m\n", username);
+    //printf("\033[32mRegistered user: \033[33;1m%s\033[0m\033[32m.\033[0m\n", username);
     free(username);
     free(password);
-    shmdt(w->usershead);
-    shmdt(w);
     ret = Vpost(mutex);
     ERROR_HELPER(ret, "Vpost Error");
     return u->username;
@@ -918,8 +909,13 @@ void write_arr(int *arr, FILE * file) {
 }
 
 void write_comments(comment *head, FILE * file){
-  fprintf (file, "%d\n%d\n%s\n%s%s",head->id,head->in_reply_to,head->status,head->author,head->comm);
+  replace_char(head->status, '\n', '\0');
+  replace_char(head->author, '\n', '\0');
+  //replace_char(head->comm, '\n', '\0');
+  fprintf (file, "%d\n%d\n%s\n%s\n%s",head->id,head->in_reply_to,head->status,head->author,head->comm);
+  fprintf (file, "Replies: ");
   write_arr(head->replies,file);
+  fprintf (file, "Seen: ");
   write_arr(head->seen,file);
   
   if (head->next == NULL) {
@@ -932,38 +928,36 @@ void write_comments(comment *head, FILE * file){
 void write_links(linkt *head, FILE * file) {
   fprintf (file, "%d\n%d\n%d\n\n",head->id,head->topic_id,head->thread_id);
   if (head->next == NULL) {
-    printf("/");
+    printf("-");
     return;
   }
   write_links(head->next, file);
 }
 
 void write_topics(topic *head, FILE * file) {
-  fprintf (file, "%d\n%s\n%s\n%s",head->id,head->author,head->title,head->content);
+  fprintf (file, "%d\n%s\n%s%s",head->id,head->author,head->title,head->content);
+  fprintf (file, "Subscribers: ");
   write_arr(head->subscribers,file);
+  fprintf (file, "Viewers: ");
   write_arr(head->viewers,file);
   
   // saving comments
   char name[32];
   sprintf(name, "saved_dumps/comments_dump%d", head->id);
+
   FILE * fcm= fopen(name, "wb");
   if (fcm != NULL) {
     fprintf (fcm, "%d\n",head->id);
-    head->commentshead=(comment *)shmat(
-      head->shmidcm, NULL,
-      0);
     write_comments(head->commentshead, fcm);  //skip admin
-    shmdt(head->commentshead);
     fclose(fcm);
   }
-
   //saving links
   char lname[32];
   sprintf(lname, "saved_dumps/links_dump%d", head->id);
   FILE * fln= fopen(lname, "wb");
   if (fln != NULL) {
     fprintf (fln, "%d\n\n",head->id);
-    //write_links(head->linkshead, fln);    // to fix
+    write_links(head->linkshead, fln);
     fclose(fln);
   }
 
@@ -976,6 +970,7 @@ void write_topics(topic *head, FILE * file) {
 }
 
 void write_users(user *head, FILE * file) {
+  //fwrite (head, sizeof(user), 1, file); 
   fprintf (file, "%d\n%s\n%s\n\n",head->id,head->username,head->password);
   if (head->next == NULL) {
     printf("-");
@@ -997,12 +992,219 @@ void save_wb(whiteboard* w){
     write_topics(w->topicshead, fto);  //skip admin
     fclose(fto);
   }
-
 }
 
 
 
+int* read_arr(FILE* file, int* arr){
+  char line[1024];
+  memset(line, 0, 1024); // FLUSH
+  memset(arr, -1, MAX_SUBSCRIBERS * sizeof(int)); // FLUSH
+  fgets(line, sizeof(line), file);
+  line[strlen(line)-1]='\0';
+  int i; 
+  for (i = 0; line[i] != '\0'; i++) { 
+     if (line[i] == ' '){
+        arr=add_to_arr(arr,get_digit(line, i+1),MAX_SUBSCRIBERS);
+    } 
+  } 
+  return arr;
+
+}
+
+void read_comments(comment *head, FILE * file){
+  int id, irt;
+  char status[4], author[32], content[1024];
+  while(!feof(file)){
+    memset(status, 0, 4); // FLUSH
+    memset(author, 0, 32); // FLUSH
+    memset(content, 0, 1024); // FLUSH
+
+    fscanf (file, "%d\n",&id);
+    fscanf (file, "%d\n",&irt);
+    fgets(status, sizeof(status), file);
+    fgets(author, sizeof(author), file);
+    fgets(content, sizeof(content), file);
+    replace_char(status, '\n', '\0');
+    replace_char(author, '\n', '\0');
+    time_t date;  //TODO? naah
+    time(&date);
+    comment* c = new_comment(id, author, date, content, irt);
+    strcpy(c->status,status);
+    read_arr(file,c->replies);
+    read_arr(file,c->seen);
+    if(find_comment(head, c->id)==NULL) append_comment(head,c);
+    
+  }
+}
+void read_links(linkt *head, FILE * file){
+  int id, top, thr;
+  while(!feof(file)){
+    fscanf(file, "%d\n%d\n%d\n\n",&id,&top,&thr);
+    linkt* l=new_link(id,top,thr);
+    append_link(head,l);
+  }
+}
+
+
+void read_topics(topic *head, FILE * file){
+  int id;
+
+  char author[32], title[256], content[1024];
+  
+  while(!feof(file)){
+    memset(author, 0, 32); // FLUSH
+    memset(title, 0, 256); // FLUSH
+    memset(content, 0, 1024); // FLUSH
+
+    fscanf (file, "%d\n",&id);
+    fgets(author, sizeof(author), file);
+    if(!strcmp(author,"\n")) fgets(author, sizeof(author), file);
+    fgets(title, sizeof(title), file);
+    if(!strcmp(title,"\n")) fgets(title, sizeof(title), file);
+    fgets(content, sizeof(content), file);
+    if(!strcmp(content,"\n")) fgets(content, sizeof(content), file);
+    topic* t = new_topic(id, author, title, content);
+    read_arr(file,t->subscribers);
+    read_arr(file,t->viewers);
+    if(find_topic(head, t->id)==NULL) append_topic(head,t);
+  }
+  FILE* fcm;
+  char filename[32];
+  int topic_id;
+  id=0;
+  sprintf(filename, "saved_dumps/comments_dump0");
+  for(id=0;id<MAX_TOPICS-1;){
+    if(fcm = fopen(filename, "r")){
+      fscanf (fcm, "%d\n",&topic_id);
+      if(topic_id!=id) 
+        printf("Beware! Topic %d is changing id into %d.", id, topic_id);    // DEBUG: we hope that this will never happen
+      read_comments(find_topic(head,id)->commentshead,fcm);
+      fclose(fcm);
+      
+    }
+    id++;
+    sprintf(filename, "saved_dumps/comments_dump%d",id);
+  }
+
+  FILE* fln;
+  id=0;
+  sprintf(filename, "saved_dumps/links_dump0");
+  for(id=0;id<MAX_TOPICS-1;){
+    if(fln = fopen(filename, "r")){
+      fscanf (fln, "%d\n",&topic_id);
+      if(topic_id!=id) 
+        printf("Beware! Topic %d is changing id into %d.", id, topic_id);    // DEBUG: we hope that this will never happen
+      read_links(find_topic(head,id)->linkshead,fln);
+      fclose(fln);
+      
+    }
+    id++;
+    sprintf(filename, "saved_dumps/links_dump%d",id);
+  }
+}
 
 void load_wb(whiteboard* w){
-  return;
+  FILE * fto= fopen("saved_dumps/topics_dump", "r");
+  if (fto != NULL) {
+    read_topics(w->topicshead, fto);  //skip admin
+    
+    fclose(fto);
+  }
 }
+
+
+
+
+
+
+// encryption/decryption
+void encrypt(char* filename){
+  char command[128];
+  sprintf(command,"gpg --yes --batch --passphrase=%s -c %s >/dev/null 2>/dev/null",SUPERSECRET_KEY, filename);
+  system(command);
+}
+void decrypt(char* filename){   // filename should end with .gpg
+  char command[128];
+  sprintf(command,"gpg --yes --batch --passphrase=%s  %s >/dev/null 2>/dev/null",SUPERSECRET_KEY, filename);
+  system(command);
+}
+
+void encryptall(char* folder){
+  DIR *d;
+  struct dirent *dir;
+  char path[512];
+  d = opendir(folder);
+  if (d){
+    while ((dir = readdir(d)) != NULL){
+      memset(path, 0, 512);
+      sprintf(path,"%s/%s", folder, dir->d_name);
+      if(strstr(path, "/.")==NULL){
+
+        encrypt(path);
+      }
+    }
+    closedir(d);
+ }
+}
+
+void decryptall(char* folder){
+  DIR *d;
+  struct dirent *dir;
+  char path[512];
+  d = opendir(folder);
+  if (d){
+    while ((dir = readdir(d)) != NULL){
+      memset(path, 0, 512);
+      sprintf(path,"%s/%s", folder, dir->d_name);
+      if(strstr(path, "/.")==NULL){
+        decrypt(path);
+      }
+    }
+    closedir(d);
+ }
+}
+
+
+void rmenc(char* folder){
+  DIR *d;
+  struct dirent *dir;
+  char path[512];
+  d = opendir(folder);
+  if (d){
+    while ((dir = readdir(d)) != NULL){
+      memset(path, 0, 512);
+      sprintf(path,"%s/%s", folder, dir->d_name);
+      if(strstr(path, "/.")==NULL){
+        if(strstr(path, ".gpg") != NULL) {
+          remove(path);
+        }
+      }
+    }
+    closedir(d);
+ }
+}
+
+void rmdec(char* folder){
+  DIR *d;
+  struct dirent *dir;
+  char path[512];
+  d = opendir(folder);
+  if (d){
+    while ((dir = readdir(d)) != NULL){
+      memset(path, 0, 512);
+      sprintf(path,"%s/%s", folder, dir->d_name);
+      if(strstr(path, "/.")==NULL){
+        if(strstr(path, ".gpg") == NULL) {
+          remove(path);
+        }
+      }
+    }
+    closedir(d);
+ }
+}
+
+
+
+
+

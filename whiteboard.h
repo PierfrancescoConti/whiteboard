@@ -2,6 +2,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <time.h>
+#include <dirent.h>
 #include <errno.h>
 #include <unistd.h>
 #include <arpa/inet.h>  // htons() and inet_addr()
@@ -30,6 +31,8 @@
 
 #define USERS_KEY 19000
 #define TOPICS_KEY 20000
+
+#define SUPERSECRET_KEY "key"
 
 
 
@@ -64,6 +67,9 @@
 //            (usando choose topic dopo essersi sottoscritti) al fine di dare un senso allo status del commento
 //      - DONE: during subscription CHECK if already subscribed
 //      - DONE: se il post è mio, sono automaticamente un subscriber (e un viewer)
+//      - 
+//      - reorder users (read users)
+//      - insert timestamp to read comments
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
@@ -108,7 +114,7 @@ typedef struct tp{
   int id;
   int shmidcm;
   time_t timestamp;
-  comment* commentshead;
+  comment commentshead[MAX_COMMENTS];
   linkt linkshead[MAX_LINKS];
   char author[32];
   char title[256];
@@ -135,7 +141,7 @@ typedef struct wbadmin{
 whiteboard* create_wb(whiteboard* w);
 comment* new_comment(int id, char* author, time_t timestamp, char* comment, int reply_id);
 linkt* new_link(int id, int topic_id, int thread_id);
-topic* new_topic(int id, char* author, char* title, char* content, time_t timestamp);
+topic* new_topic(int id, char* author, char* title, char* content);
 user* new_user(int id, char* username, char* password);
 subscribers_pool* new_entry_pool(int uid);
 
@@ -286,4 +292,20 @@ void write_topics(topic *head, FILE * file);
 void write_users(user *head, FILE * file);
 void save_wb(whiteboard* w);
 
+int* read_arr(FILE* file, int* arr);
+void read_comments(comment *head, FILE * file);
+void read_links(linkt *head, FILE * file);
+void read_topics(topic *head, FILE * file);
 void load_wb(whiteboard* w);
+
+
+// encryption/decryption
+void encrypt(char* filename);
+void decrypt(char* filename);
+
+void encryptall(char* folder);
+void decryptall(char* folder);
+
+void rmenc(char* folder);
+void rmdec(char* folder);
+
