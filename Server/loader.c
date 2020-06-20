@@ -134,6 +134,7 @@ int main(int argc, char* argv[]) {
     decrypt("saved_dumps/users_dump.gpg");
 
     FILE * fus= fopen("saved_dumps/users_dump", "r");
+
     
     //Fill and exceed users' memory creating users//
     while(!feof(fus)){
@@ -163,6 +164,7 @@ int main(int argc, char* argv[]) {
         strcat(password, "\0");
         // loop del messaggio (inserisci i comandi corretti)
         //REGISTER//
+
         strcpy(choice,"R\0");
         send(socket_desc, choice,strlen(choice),0);
         recv(socket_desc, buf, buf_len, 0);
@@ -173,9 +175,12 @@ int main(int argc, char* argv[]) {
         //Password
         send(socket_desc, password,strlen(password),0);
         recv(socket_desc, buf, buf_len, 0);
+
     }
+    
 
     fclose(fus);
     rmdec("saved_dumps");
     exit(EXIT_SUCCESS);
+    
 }

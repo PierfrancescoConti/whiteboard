@@ -693,7 +693,7 @@ void app_loop(whiteboard* w, int socket_desc, char *current_user, int mutex/*, i
 
   free(buf);
   free(resp);
-  return;
+  exit(EXIT_SUCCESS);
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -868,17 +868,39 @@ int main(int argc, char *argv[]) {
 
   // LOAD WHITEBOARD
   decryptall("saved_dumps");
-  system("./loader &");
+  //system("./loader &");   // replaced from fork/exec/wait procedure
+  int pid, pid2, status;
+  if ((pid2 = fork()) < 0) {
+    ERROR_HELPER(pid2, "Fork error.");
+// PARENT CANNOT WAIT! child to wait the users' loading:
+  } else if (pid2 == 0) {
+    if ((pid = fork()) < 0) {
+      ERROR_HELPER(pid2, "Fork error.");
+    } else if (pid == 0) {     
+      execv("./loader",argv);
+      exit(EXIT_FAILURE); /* only if execv fails */
+  
+    } else {
+    if ((ret = waitpid(pid,&status,0)) == -1)
+      printf ("parent:error\n");
+    if (WEXITSTATUS(status)) 
+      printf("\033[31;1mDANGER: USERS NOT LOADED\033[0m\n"); 
+    else
+      printf("\033[32mUsers loaded Successfully!\033[0m\n"); 
+    
+  
+    }
+
+    
+  }
 
   ret = Pwait(mutex);
   ERROR_HELPER(ret, "Pwait Error");
   load_wb(w);                                // loading
   ret = Vpost(mutex);
   ERROR_HELPER(ret, "Vpost Error");
-
   rmdec("saved_dumps");
   // Loading complete!
-
   while (1) {
     // accept incoming connection
     client_desc = accept(socket_desc, (struct sockaddr *)client_addr,
@@ -886,9 +908,7 @@ int main(int argc, char *argv[]) {
     if (client_desc == -1 && errno == EINTR)
       continue; // check for interruption by signals
     ERROR_HELPER(client_desc, "Cannot open socket for incoming connection");
-
     //printf("\n\033[36;4mIncoming connection accepted...\n\033[0m");
-
     if ((processID = fork()) < 0) {
       ERROR_HELPER(processID, "Fork error.");
     } else if (processID == 0) { /* If this is the child process */
@@ -904,4 +924,5 @@ int main(int argc, char *argv[]) {
   shmdt(w);
   semctl(mutex, 0, IPC_RMID); 
   exit(EXIT_SUCCESS);
+
 }
